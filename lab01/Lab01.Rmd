@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 01"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -110,9 +110,11 @@ ggplot(df) +
 
 ```
 
+We can see that the posterior mean and standard deviation converge as the nimber of random draws grows. 
+
 ## $Pr(\theta < 0.4 | y)$
 
-The true probability is given by `pbeta(0.4, alpha_post, beta_post)` which is `r pbeta(0.4, alpha_post, beta_post)`.
+The true probability is calculated by calling `pbeta(0.4, alpha_post, beta_post)` which is `r pbeta(0.4, alpha_post, beta_post)`.
 
 We will simulate by taking samples and counting how many of them are < $0.4$.
 
@@ -144,12 +146,16 @@ where $\theta$ are samples drawn from the posterior. We can therefore easily cal
 draws = 10000
 
 samples = rbeta(draws, alpha_post, beta_post)
-phi = data.frame(log(samples / (1 - samples)))
-colnames(phi) = "phi"
+phi = log(samples / (1 - samples))
 
 ```
 
+The distribution looks as follows:
+
 ```{r, echo = FALSE}
+
+phi = data.frame(phi)
+colnames(phi) = "phi"
 
 ggplot(phi) +
   geom_histogram(aes(x = phi, y=..density..), color = "black",
@@ -182,6 +188,10 @@ We calculate $\tau^2$, then we sample from `rinvchisq()` and compare the drawn s
 
 ```{r}
 
+################################################################################
+# Exercise 2.a)
+################################################################################
+
 obs = c(14, 25, 45, 25, 30, 33, 19, 50, 34, 67)
 n = length(obs)
 mu = 3.5
@@ -191,20 +201,22 @@ samples = rinvchisq(10000, n, tau_sq)
 X = seq(from = 0, to = 4, length.out = 1000)
 Y = dinvchisq(X, n, tau_sq)
 
-df = data.frame(X, Y)
-samples_df = data.frame(samples)
-
 ```
 
 We can see hat the drawn samples for $\sigma^2$ fit the $Inv-\chi^2(n, \tau^2)$.
 
 ```{r, echo = FALSE, warning = FALSE}
 
+df = data.frame(X, Y)
+samples_df = data.frame(samples)
+
 ggplot(df) +
   geom_histogram(data = samples_df, aes(x = samples, y=..density..),
-                 bins = sqrt(nrow(samples_df)), color = "black", fill = "#DEDEDE") +
+                 bins = sqrt(nrow(samples_df)), color = "black",
+                 fill = "#DEDEDE") +
   geom_line(aes(x = X, y = Y, color = "Density Function")) +
-  labs(title = "Drawn Samples and Inverse-Chi-Squared Density Function", y = "Density", x = "X") +
+  labs(title = "Drawn Samples and Inverse-Chi-Squared Density Function",
+       y = "Density", x = "X") +
   scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
   theme_minimal()
 
@@ -212,17 +224,19 @@ ggplot(df) +
 
 ## Gini-Index
 
+The gini index is calculated by the following R code. As our samples represent $\sigma^2$, we have to include it in the square root.
+
 ```{r}
 
-#g = function(q, mu, sd) {
-#  return(2 * pnorm(q, mean = mu, sd = (sd/sqrt(2)) - 1))
-#}
+################################################################################
+# Exercise 2.b)
+################################################################################
 
 G = 2 * pnorm(sqrt(samples/2)) - 1
 
-#sapply(samples, g, mu = mu, sd = samples)
-
 ```
+
+The histogram for the gini indeces looks like follows:
 
 ```{r, echo = FALSE}
 
@@ -240,11 +254,19 @@ ggplot(G_df) +
 
 ## Credible and Density Interval
 
+We us the `quantile()` function to receive the quantile values for the credible interval.
+
 ```{r}
+
+################################################################################
+# Exercise 2.c)
+################################################################################
 
 quantiles = quantile(G, c(0.025, 0.975))
 
 ```
+
+The following plot visualizes the credible interval:
 
 ```{r, echo = FALSE}
 
@@ -259,6 +281,8 @@ ggplot(G_df) +
   scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
   theme_minimal()
 ```
+
+For the density interval we first order our x and y values and then keep on adding more until we have reached more than 5 percent of the area (is faster then looking for the 95 percentile). We then save the index of that data point. The y value of this data point defines the threshold. We then filter for the values above the threshold, the left values all reside insde of the density interval. As we have just one interval in this case, it's enough to simply take the first and last value (of the unordered set after filtering) to visualize the density interval.
 
 ```{r}
 
@@ -278,7 +302,6 @@ for (i in 1:nrow(dg_ordered)) {
 }
 
 theta = dg_ordered[index,2]
-print(theta)
 
 selected = dg_unordered[dg_unordered$dg.y > theta,]
 
@@ -287,20 +310,21 @@ interval_b = selected[nrow(selected),]
 
 ```
 
+The value of $\theta$ is `r theta`. The interval is given by [`r interval_a$dg.x`, `r interval_b$dg.x`].
+
 ```{r, echo = FALSE}
 
 dg_df = data.frame(dg$x, dg$y)
 
 ggplot(dg_df) +
+  geom_ribbon(data = selected, aes(x = dg.x, ymin = 0, ymax = dg.y),
+              alpha = 0.5, fill = "#FFC300", color = "#FFC300") +
   geom_line(aes(x = dg.x, y = dg.y, color = "Density Function")) +
   labs(title = "Gini Index of the Drawn Inverse Chi-Squared Samples",
        y = "Density", x = "X") +
-  #geom_vline(xintercept = c(interval_a$dg.x, interval_b$dg.x), colour = "#0039C7") +
-  geom_ribbon(data = selected, aes(x = dg.x, ymin = 0, ymax = dg.y),
-              alpha = 0.5, fill = "#FFC300", color = "#FFC300") + 
   scale_color_manual("Legend", values = c("#000000", "#000000")) +
   theme_minimal()
-#0039C7
+
 ```
 
 # Bayesian Inference
