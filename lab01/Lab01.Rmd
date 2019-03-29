@@ -148,6 +148,8 @@ ggplot(phi) +
 
 # Log-Normal Distribution and the Gini Coefficient
 
+## Simulate Draws from the Posterior Distribution
+
 ```{r}
 
 #rinvchisq = function(n, df, tau_sq) {
@@ -164,15 +166,15 @@ X = seq(from = 0, to = 4, length.out = 1000)
 Y = dinvchisq(X, n, tau_sq)
 
 df = data.frame(X, Y)
-samples = data.frame(samples)
+samples_df = data.frame(samples)
 
 ```
 
 ```{r, echo = FALSE, warning = FALSE}
 
 ggplot(df) +
-  geom_histogram(data = samples, aes(x = samples, y=..density..),
-                 bins = sqrt(nrow(samples)), color = "black", fill = "#DEDEDE") +
+  geom_histogram(data = samples_df, aes(x = samples, y=..density..),
+                 bins = sqrt(nrow(samples_df)), color = "black", fill = "#DEDEDE") +
   geom_line(aes(x = X, y = Y, color = "Density Function")) +
   labs(title = "Drawn Samples and Inverse-Chi-Squared Density Function", y = "Density", x = "X") +
   scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
@@ -180,6 +182,98 @@ ggplot(df) +
 
 ```
 
+## Gini-Index
+
+```{r}
+
+#g = function(q, mu, sd) {
+#  return(2 * pnorm(q, mean = mu, sd = (sd/sqrt(2)) - 1))
+#}
+
+G = 2 * pnorm(sqrt(samples/2)) - 1
+
+#sapply(samples, g, mu = mu, sd = samples)
+
+```
+
+```{r, echo = FALSE}
+
+G_df = data.frame(G)
+
+ggplot(G_df) +
+  geom_histogram(aes(x = G, y=..density..),
+                 bins = sqrt(nrow(G_df)), color = "black", fill = "#DEDEDE") +
+  labs(title = "Gini Index of the Drawn Inverse Chi-Squared Samples",
+       y = "Density", x = "X") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+```
+
+## Credible and Density Interval
+
+```{r}
+
+quantiles = quantile(G, c(0.025, 0.975))
+
+```
+
+```{r, echo = FALSE}
+
+ggplot(G_df) +
+  annotate("rect", xmin=quantiles[1], xmax=quantiles[2], ymin=0, ymax=Inf,
+           alpha=0.5, fill="#FFC300") +
+  geom_histogram(aes(x = G, y=..density..),
+                 bins = sqrt(nrow(G_df)), color = "black", fill = "#DEDEDE") +
+  geom_vline(xintercept = quantiles, colour = "#FFC300") + 
+  labs(title = "Two Tailed 95% Credible Interval",
+       y = "Density", x = "X") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+```
+
+```{r}
+
+dg = density(G)
+
+dg_unordered = data.frame(dg$x, dg$y)
+dg_ordered = data.frame(dg$x[order(dg$y)], dg$y[order(dg$y)])
+colnames(dg_ordered) = c("x_ord", "y_ord")
+
+index = NaN
+
+for (i in 1:nrow(dg_ordered)) {
+  if (sum(dg_ordered$y_ord[1:i])/sum(dg_ordered$y_ord) > 0.05) {
+    index = i
+    break
+  }
+}
+
+theta = dg_ordered[index,2]
+print(theta)
+
+selected = dg_unordered[dg_unordered$dg.y > theta,]
+
+interval_a = selected[1,]
+interval_b = selected[nrow(selected),]
+
+```
+
+```{r, echo = FALSE}
+
+dg_df = data.frame(dg$x, dg$y)
+
+ggplot(dg_df) +
+  geom_line(aes(x = dg.x, y = dg.y, color = "Density Function")) +
+  labs(title = "Gini Index of the Drawn Inverse Chi-Squared Samples",
+       y = "Density", x = "X") +
+  #geom_vline(xintercept = c(interval_a$dg.x, interval_b$dg.x), colour = "#0039C7") +
+  geom_ribbon(data = selected, aes(x = dg.x, ymin = 0, ymax = dg.y),
+              alpha = 0.5, fill = "#FFC300", color = "#FFC300") + 
+  scale_color_manual("Legend", values = c("#000000", "#000000")) +
+  theme_minimal()
+#0039C7
+```
 
 # Bayesian Inference
 
