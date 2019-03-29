@@ -3,20 +3,21 @@ title: "Bayesian Learning - Lab 01"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
+library(geoR)
 ```
 
 # Bernoulli
@@ -51,7 +52,7 @@ The posterior is given as Beta($\alpha_n$, $\beta_n$) where $\alpha_n = \alpha_0
 $$\text{E}[X] = \frac{\alpha_n}{\alpha_n + \beta_n}$$
 And the standard deviation by:
 
-$$\text{var}[X] = \sqrt{\frac{\alpha_n \beta_n}{(\alpha_n + \beta_n)^2(\alpha_n + \beta_n + 1)}}$$
+$$\text{sd}[X] = \sqrt{\frac{\alpha_n \beta_n}{(\alpha_n + \beta_n)^2(\alpha_n + \beta_n + 1)}}$$
 
 So let's calculate this.
 
@@ -94,7 +95,8 @@ ggplot(df) +
 ggplot(df) +
   geom_line(aes(x = count, y = sample_sd, colour = "Standard Deviation")) +
   geom_line(aes(x = count, y = sd_posterior, colour = "True Standard Deviation")) +
-  labs(title = " Standard Deviation with Increasing Drawns", y = "Standard Deviation", x = "Draws") +
+  labs(title = " Standard Deviation with Increasing Drawns",
+       y = "Standard Deviation", x = "Draws") +
   scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
   theme_minimal()
 
@@ -145,6 +147,39 @@ ggplot(phi) +
 
 
 # Log-Normal Distribution and the Gini Coefficient
+
+```{r}
+
+#rinvchisq = function(n, df, tau_sq) {
+#  return(df * tau_sq / rchisq(n, df))
+#}
+
+obs = c(14, 25, 45, 25, 30, 33, 19, 50, 34, 67)
+n = length(obs)
+mu = 3.5
+tau_sq = (sum((log(obs) - mu)^2)) / (n)
+
+samples = rinvchisq(10000, n, tau_sq)
+X = seq(from = 0, to = 4, length.out = 1000)
+Y = dinvchisq(X, n, tau_sq)
+
+df = data.frame(X, Y)
+samples = data.frame(samples)
+
+```
+
+```{r, echo = FALSE, warning = FALSE}
+
+ggplot(df) +
+  geom_histogram(data = samples, aes(x = samples, y=..density..),
+                 bins = sqrt(nrow(samples)), color = "black", fill = "#DEDEDE") +
+  geom_line(aes(x = X, y = Y, color = "Density Function")) +
+  labs(title = "Drawn Samples and Inverse-Chi-Squared Density Function", y = "Density", x = "X") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+```
+
 
 # Bayesian Inference
 
