@@ -329,6 +329,111 @@ ggplot(dg_df) +
 
 # Bayesian Inference
 
+Bayesian inference for the concentration parameter in the von Mises distribution.
+This exercise is concerned with directional data. The point is to show you that
+the posterior distribution for somewhat weird models can be obtained by plotting
+it over a grid of values. The data points are observed wind directions at a given
+location on ten different days. The data are recorded in degrees:
+
+$$(40, 303, 326, 285, 296, 314, 20, 308, 299, 296),$$
+
+where North is located at zero degrees (see Figure 1 on the next page, where the
+angles are measured clockwise). To fit with Wikipedias description of probability
+distributions for circular data we convert the data into radians $-\pi \leq y \leq \pi$. The
+10 observations in radians are
+
+$$(-2.44, 2.14, 2.54, 1.83, 2.02, 2.33, -2.79, 2.23, 2.07, 2.02).$$
+
+Assume that these data points are independent observations following the von Mises
+distribution
+
+$$p(y|\mu,\kappa) = \frac{\text{exp}\left[\kappa \cdot \text{cos}(y - \mu) \right]}{2\pi I_o(\kappa)}, -\pi \leq y \leq \pi$$
+
+where $I_0(\kappa)$ is the modified Bessel function of the first kind of order zero [see
+`?besselI` in R]. The parameter $\mu (-\pi \leq y \leq \pi)$ is the mean direction and $\kappa > 0$is
+called the concentration parameter. Large $\kappa$ gives a small variance around $\mu$, and
+vice versa. Assume that $\mu$ is known to be 2.39. Let $\kappa \sim \text{Exponential}(\lambda = 1)$ a
+priori, where $\lambda$ is the rate parameter of the exponential distribution (so that the
+mean is $1/\lambda$).
+
+a) Plot the posterior distribution of $\kappa$ for the wind direction data over a fine grid
+of $\kappa$ values.
+
+b) Find the (approximate) posterior mode of $\kappa$ from the information in a).
+
+![The wind direction data. Angles are measured clock-wise starting from North.](figures/circle.png){width=250px}
+
+## Posterior Plot of $\kappa$ for Wind Direction Data Over a Fine Grid
+
+```{r}
+
+################################################################################
+# Exercise 3.a)
+################################################################################
+
+mu = 2.39
+lambda = 1
+kappa = seq(from = 0.01, to = 20.0, by = 0.01)
+y = c(-2.44, 2.14, 2.54, 1.83, 2.02, 2.33, -2.79, 2.23, 2.07, 2.02)
+
+p = function(y, kappa, mu = 2.39) {
+  return((exp(kappa * cos(y - mu))) / (2 * pi * besselI(kappa, 0)))
+}
+
+likelihood = function(y, kappa, mu = 2.39) {
+  m_probs = sapply(kappa, FUN = function(k, y, mu) {
+    return(p(y, k, mu))
+  }, y, mu)
+  return(apply(m_probs, 2, prod))
+}
+
+prior = function (kappa, lambda) {
+  return(dexp(kappa, rate = lambda))
+}
+
+posterior = function(y, kappa, mu = 2.39, lambda = 1) {
+  return(prior(kappa, lambda) * likelihood(y, kappa, mu))
+}
+
+prior_values = prior(kappa, lambda)
+likelihood_values = likelihood(y, kappa, mu)
+# posterior(y, kappa, mu) would work as well but as we already have the values
+# we can save come computation time
+posterior_values = prior_values * likelihood_values
+
+################################################################################
+# Exercise 3.b)
+################################################################################
+
+index = which.max(posterior_values)
+kappa_max = kappa[index]
+
+```
+
+```{r, echo = FALSE, warning = FALSE}
+
+df = data.frame(kappa, prior_values, likelihood_values, posterior_values)
+colnames(df) = c("kappa", "prior", "likelihood", "posterior")
+
+ggplot(df) +
+  geom_line(aes(x = kappa, y = prior, color = "Prior")) +
+  geom_line(aes(x = kappa, y = likelihood, color = "Likelihood")) +
+  geom_line(aes(x = kappa, y = posterior, color = "Posterior")) +
+  geom_vline(aes(xintercept = kappa_max), linetype = "dotdash") + 
+  labs(title = "Prior, Likelihood and Posterior depending on kappa",
+       y = "Density", x = "Kappa") +
+  scale_color_manual("Legend", values = c("#FFC300", "#C70039", "#0039C7")) +
+  ylim(0, 6.1*10^(-5)) +
+  theme_minimal()
+
+```
+
+## Posterior Mode of $\kappa$
+
+For approximating the posterior mode we have the find the maximum value of the posterior and find the appropriate $\kappa$. The code can be found in the code snipped above. The value is marked by the dashed line in the plot.
+
+The posterior mode is therefore given by $\kappa = `r kappa_max`$.
+
 # Source Code
 
 ```{r, ref.label=knitr::all_labels(), echo = TRUE, eval = FALSE, results = 'show'}
