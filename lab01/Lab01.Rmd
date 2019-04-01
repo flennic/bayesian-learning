@@ -176,7 +176,8 @@ $$p(y|\mu, \sigma^2) = \frac{1}{y \sqrt{2\pi\sigma^2}} \text{exp}\left[ - \frac{
 for $y > 0$, $\mu > 0$, and $\sigma^2 > 0$. The log-normal distribution is related to the normal distribution as follows: if $y \sim \mathcal{N}(\mu, \sigma^2)$ then log $y\sim \mathcal{N}(\mu, \sigma^2)$. Let $y_1,...,y_n|\mu,\sigma^2$, where $\mu = 3.5$ is assumed to be known but $\sigma^2$ unknown with non-informative prior $p(\sigma^2) \propto 1/\sigma^2$. The posterior for $\sigma^2$ is the $Inv-\chi^2(n, \tau^2)$ distribution where
 
 $$\tau^2 = \frac{\sum_{i=1}^{n} (\text{log} \; y_i - \mu)^2 }{n}.$$
-a) Simulate 10, 000 draws from the posterior of $\sigma^2$ (assuming $\mu = 3.5$) and compare with the theoretical $Inv-\chi^2(n, \tau^2)$ posterior distribution.
+
+a) Simulate 10.000 draws from the posterior of $\sigma^2$ (assuming $\mu = 3.5$) and compare with the theoretical $Inv-\chi^2(n, \tau^2)$ posterior distribution.
 
 b) The most common measure of income inequality is the Gini coefficient, G, where $0 \leq G \leq 1$. $G = 0$ means a completely equal income distribution, whereas $G = 1$ means complete income inequality. See Wikipedia for more information. It can be shown that $G = 2\Phi(\sigma/\sqrt{n})-1$ when incomes follow a $\text{log} \;\mathcal{N}(\mu, \sigma^2)$ distribution. $\Phi(z)$ is the cumulative distribution function (CDF) for the standard normal distribution with mean zero and unit variance. Use the posterior draws in a) to compute the posterior distribution of the Gini coefficient G for the current data set.
 
@@ -266,7 +267,7 @@ quantiles = quantile(G, c(0.025, 0.975))
 
 ```
 
-The following plot visualizes the credible interval:
+The following plot visualizes the credible interval [`r quantiles[1]`, `r quantiles[2]`]:
 
 ```{r, echo = FALSE}
 
@@ -295,13 +296,13 @@ colnames(dg_ordered) = c("x_ord", "y_ord")
 index = NaN
 
 for (i in 1:nrow(dg_ordered)) {
-  if (sum(dg_ordered$y_ord[1:i])/sum(dg_ordered$y_ord) > 0.05) {
+  if (sum(dg_ordered$y_ord[1:i]) / sum(dg_ordered$y_ord) > 0.05) {
     index = i
     break
   }
 }
 
-theta = dg_ordered[index,2]
+theta = dg_ordered[index, 2]
 
 selected = dg_unordered[dg_unordered$dg.y > theta,]
 
