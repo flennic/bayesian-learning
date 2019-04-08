@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 01"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -160,6 +160,7 @@ colnames(phi) = "phi"
 ggplot(phi) +
   geom_histogram(aes(x = phi, y=..density..), color = "black",
                  fill = "#dedede", bins = sqrt(draws)) +
+  geom_density(aes(x = phi, y=..density..), color = "#0039C7") +
   labs(title = "Histrogram of Log-Odds",
   y = "Density",
   x = "Log-Odds", color = "Legend") +
@@ -201,6 +202,51 @@ tau_sq = (sum((log(obs) - mu)^2)) / (n)
 samples = rinvchisq(10000, n, tau_sq)
 X = seq(from = 0, to = 4, length.out = 1000)
 Y = dinvchisq(X, n, tau_sq)
+
+```
+
+```{r, echo = FALSE, eval = FALSE}
+
+################################################################################
+# Exercise 2.a) ALTERNAIVE
+################################################################################
+
+y <- c(14, 25, 45, 25, 30, 33, 19, 50, 34, 67)
+n <- length(y)
+
+mu <- 3.5
+tau_sq <- sum((log(y) - mu)^2)/n
+
+samples <- rchisq(10000, n)
+
+# Posterior of sigma square
+sigma_sq <- (n * tau_sq)/samples
+
+# Mean and sd
+sigmasq_mean <- mean(sigma_sq)
+sigmasq_sd <- sd(sigma_sq)
+
+# True mean and sd for inverse chi square
+invchisq_mean <- n * tau_sq/(n - 2)
+invchisq_sd <- sqrt(((2*n^2) * tau_sq^4) / (((n - 2)^2) * (n - 4)))
+
+# Probability density function for inverse chi square
+invchisq <- function(y, n, tau_sq){
+  return(((((tau_sq*n)/2)^(n/2))/gamma(n/2)) *
+           ((exp((-n*tau_sq)/(2*y)))/y^(1+n/2)))
+}
+
+# Plotting simulated posterior distribution.
+ggplot(as.data.frame(sigma_sq), aes(x = sigma_sq)) +
+  geom_histogram(aes(y=..density..),colour="black",bins=50) +
+  stat_function(fun = invchisq, args = list(n=n,tau_sq=tau_sq),colour="red") +
+  ggtitle("Plot of simulated posterior distribution") +
+  theme_bw() + 
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "right")
+
+################################################################################
+# Exercise 2.a) ALTERNATIVE END
+################################################################################
 
 ```
 
@@ -246,6 +292,7 @@ G_df = data.frame(G)
 ggplot(G_df) +
   geom_histogram(aes(x = G, y=..density..),
                  bins = sqrt(nrow(G_df)), color = "black", fill = "#DEDEDE") +
+  
   labs(title = "Gini Index of the Drawn Inverse Chi-Squared Samples",
        y = "Density", x = "X") +
   scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
@@ -321,7 +368,7 @@ ggplot(dg_df) +
   geom_ribbon(data = selected, aes(x = dg.x, ymin = 0, ymax = dg.y),
               alpha = 0.5, fill = "#FFC300", color = "#FFC300") +
   geom_line(aes(x = dg.x, y = dg.y, color = "Density Function")) +
-  labs(title = "Gini Index of the Drawn Inverse Chi-Squared Samples",
+  labs(title = "Highest Density Interval",
        y = "Density", x = "X") +
   scale_color_manual("Legend", values = c("#000000", "#000000")) +
   theme_minimal()
