@@ -1,0 +1,43 @@
+---
+title: "Bayesian Learning - Lab 01"
+author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float: false
+    number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Linear and Polynomial Regression
+
+**Exercise:** The dataset `TempLinkoping.txt` contains daily temperatures (in Celcius degrees) at Malmslätt, Linköping over the course of the year 2016 (366 days since 2016 was a leap year). The response variable is temp and the covariate is
+
+$$ time = \frac{\text{the number of days since beginning of year}}{366} $$
+The task is to perform a Bayesian analysis of a quadratic regression
+
+$$ temp = \beta_0 + \beta_1 \cdot time^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(,\sigma^2). $$
+a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters $\mu_0, \Omega_0,\nu_0$ and $\sigma_0^2$ to sensible values. Start with $\mu_0 = (−10, 100, −100)^T$ , $\Omega_0 = 0.01 \cdot I_3$, $\nu_0=4$ and $\sigma_0^2 = 1$. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look rea- sonable? If not, change the prior hyperparameters until the collection of prior regression curves do agree with your prior beliefs about the regression curve. [Hint: the R package `mvtnorm` will be handy. And use your $Inv-\chi^2$ simulator from Lab 1.]
+
+b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2$ and $\sigma^2$. Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time) = \beta_0 + \beta_1 \cdot time + \beta_2 \cdot time^2$, computed for every value of *time*. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for *f(time)*. That is, compute the 95% equal tail posterior probability intervals for every value of *time* and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
+
+c) It is of interest to locate the time with the highest expected temperature (that is, the time where f(time) is maximal). Let’s call this value $\tilde{x}$ Use the simulations in b) to simulate from the *posterior distribution of $\tilde{x}$*. [Hint: the regression curve is a quadratic. You can find a simple formula for $\tilde{x}$ given $\beta_0, \beta_1$ and $\beta_2$.]
+
+d) Say now that you want to estimate a polynomial model of order 7, but you suspect that higher order terms may not be needed, and you worry about overfitting. Suggest a suitable prior that mitigates this potential problem. You do not need to compute the posterior, just write down your prior. [Hint: the task is to specify $\mu_0$ and $\Omega_0$ in a smart way.]
+
+# Posterior Approximation for Classification with Wogistic Regression
+
+# Source Code
+
+```{r, ref.label=knitr::all_labels(), echo = TRUE, eval = FALSE, results = 'show'}
+
+```
