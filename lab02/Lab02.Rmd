@@ -17,6 +17,9 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(kableExtra)
+library(geoR)
+library(MASS)
+library(ggplot2)
 set.seed(42)
 ```
 
@@ -62,7 +65,7 @@ predict_using_model_params = function(time, mu_0, omega_0, nu_0, sigma_sq_0) {
   beta = mvrnorm(n = 1, mu = mu_0, Sigma = sigma_sq * solve(omega_0))
   
   # Now we also need an error
-  error = rnorm(n = length(time), mean = 0, sd = sigma_sq)
+  error = rnorm(n = 1, mean = 0, sd = sigma_sq)
   
   # Then we fit the model
   temp =
@@ -84,7 +87,7 @@ for (i in 3:(n+2)) {
 
 ```
 
-```{r}
+```{r, echo = FALSE}
 
 df = data.frame(priors)
 
@@ -107,6 +110,61 @@ plot = ggplot(df) +
 plot
 ```
 
+
+
+```{r}
+
+# Adjusted Parameters
+mu_0 = c(-8, 90, -82)
+omega_0 = 0.2 * diag(3)
+nu_0 = 4
+sigma_sq_0 = 2
+n = 5 # Number of prior regression curves
+
+```
+
+**$\mu_0$:** Looking at the data we want to slightly adjust the intercept, so we set the first entry of $\mu_0$ to `r mu_0[1]` (degrees). For the second linear regression coefficient we choose to set it to `r mu_0[2]` as the data trend seems to be warmer in the second half of the year and to capture the warm spike in the middle around 0.6 of the year. For the last linear regression coefficient we chose a value that pulls the curve down again on the right side so that it fits the data the most..
+
+**$\Omega_0$:** The variance seems too high as we don't think the mean temperature will fluctuate that much, we thereby decrease it to `r omega_0[1,1]` (decrease as the inverse is taken).
+
+**$\sigma^2$:** We increase the variance of the error to allow for more fluctuation (and increasing uncertainty).
+
+```{r}
+
+priors = matrix(0, ncol = n + 2, nrow = length(temperatures_linkoeping$time))
+priors[ ,1] = temperatures_linkoeping$time
+priors[ ,2] = temperatures_linkoeping$temp
+
+for (i in 3:(n+2)) {
+  priors[ , i] = predict_using_model_params(
+    temperatures_linkoeping$time, mu_0, omega_0, nu_0, sigma_sq_0)
+}
+
+```
+
+
+```{r, echo = FALSE}
+
+df = data.frame(priors)
+
+plot = ggplot(df) +
+  geom_point(aes(x = df[, 1], y = df[,2]), color = "black", fill = "#dedede",
+             shape = 21)
+  #for (i in 3:(n+2)) {
+  #  plot = plot + geom_line(aes(x = df[,1], y = df[,i], color = "Random Prior"))
+  #}
+  plot = plot + geom_line(aes(x = df[,1], y = df[,3], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,4], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,5], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,6], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,7], color = "Random Prior"))
+  plot = plot + labs(title = "Day of Year VS Draft Number",
+  y = "Temperature", x = "Day of Year in Percent", color = "Legend")
+  plot = plot + scale_color_manual("Legend", values = rep("#C70039", n))
+  plot = plot + theme_minimal()
+  
+plot
+```
 
 
 
