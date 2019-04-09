@@ -11,7 +11,7 @@
 
 <meta name="author" content="Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)" />
 
-<meta name="date" content="2019-04-08" />
+<meta name="date" content="2019-04-09" />
 
 <title>Bayesian Learning - Lab 01</title>
 
@@ -190,13 +190,15 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">Bayesian Learning - Lab 01</h1>
 <h4 class="author"><em>Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)</em></h4>
-<h4 class="date"><em>2019-04-08</em></h4>
+<h4 class="date"><em>2019-04-09</em></h4>
 
 </div>
 
 <div id="TOC">
 <ul>
-<li><a href="#linear-and-polynomial-regression">Linear and Polynomial Regression</a></li>
+<li><a href="#linear-and-polynomial-regression">Linear and Polynomial Regression</a><ul>
+<li><a href="#determining-the-prior-distribution-of-the-model-parameters">Determining the prior Distribution of the Model Parameters</a></li>
+</ul></li>
 <li><a href="#posterior-approximation-for-classification-with-wogistic-regression">Posterior Approximation for Classification with Wogistic Regression</a></li>
 <li><a href="#source-code">Source Code</a></li>
 </ul>
@@ -206,12 +208,32 @@ $(document).ready(function () {
 <h1>Linear and Polynomial Regression</h1>
 <p><strong>Exercise:</strong> The dataset <code>TempLinkoping.txt</code> contains daily temperatures (in Celcius degrees) at Malslätt, Linköping over the course of the year 2016 (366 days since 2016 was a leap year). The response variable is temp and the covariate is</p>
 <p><span class="math display">\[ time = \frac{\text{the number of days since beginning of year}}{366} \]</span> The task is to perform a Bayesian analysis of a quadratic regression</p>
-<p><span class="math display">\[ temp = \beta_0 + \beta_1 \cdot time^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(,\sigma^2). \]</span> a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters <span class="math inline">\(\mu_0, \Omega_0,\nu_0\)</span> and <span class="math inline">\(\sigma_0^2\)</span> to sensible values. Start with <span class="math inline">\(\mu_0 = (-10, 100, -100)^T\)</span> , <span class="math inline">\(\Omega_0 = 0.01 \cdot I_3\)</span>, <span class="math inline">\(\nu_0=4\)</span> and <span class="math inline">\(\sigma_0^2 = 1\)</span>. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look rea- sonable? If not, change the prior hyperparameters until the collection of prior regression curves do agree with your prior beliefs about the regression curve. [Hint: the R package <code>mvtnorm</code> will be handy. And use your <span class="math inline">\(Inv-\chi^2\)</span> simulator from Lab 1.]</p>
+<p><span class="math display">\[ temp = \beta_0 + \beta_1 \cdot time + \beta_2  \cdot times^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(0,\sigma^2). \]</span> a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters <span class="math inline">\(\mu_0, \Omega_0,\nu_0\)</span> and <span class="math inline">\(\sigma_0^2\)</span> to sensible values. Start with <span class="math inline">\(\mu_0 = (-10, 100, -100)^T\)</span> , <span class="math inline">\(\Omega_0 = 0.01 \cdot I_3\)</span>, <span class="math inline">\(\nu_0=4\)</span> and <span class="math inline">\(\sigma_0^2 = 1\)</span>. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look rea- sonable? If not, change the prior hyperparameters until the collection of prior regression curves do agree with your prior beliefs about the regression curve. [Hint: the R package <code>mvtnorm</code> will be handy. And use your <span class="math inline">\(Inv-\chi^2\)</span> simulator from Lab 1.]</p>
 <ol start="2" style="list-style-type: lower-alpha">
 <li><p>Write a program that simulates from the joint posterior distribution of <span class="math inline">\(\beta_0, \beta_1, \beta_2\)</span> and <span class="math inline">\(\sigma^2\)</span>. Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function <span class="math inline">\(f(time) = \beta_0 + \beta_1 \cdot time + \beta_2 \cdot time^2\)</span>, computed for every value of <em>time</em>. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for <em>f(time)</em>. That is, compute the 95% equal tail posterior probability intervals for every value of <em>time</em> and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?</p></li>
 <li><p>It is of interest to locate the time with the highest expected temperature (that is, the time where f(time) is maximal). Let’s call this value <span class="math inline">\(\tilde{x}\)</span> Use the simulations in b) to simulate from the <em>posterior distribution of <span class="math inline">\(\tilde{x}\)</span></em>. [Hint: the regression curve is a quadratic. You can find a simple formula for <span class="math inline">\(\tilde{x}\)</span> given <span class="math inline">\(\beta_0, \beta_1\)</span> and <span class="math inline">\(\beta_2\)</span>.]</p></li>
 <li><p>Say now that you want to estimate a polynomial model of order 7, but you suspect that higher order terms may not be needed, and you worry about overfitting. Suggest a suitable prior that mitigates this potential problem. You do not need to compute the posterior, just write down your prior. [Hint: the task is to specify <span class="math inline">\(\mu_0\)</span> and <span class="math inline">\(\Omega_0\)</span> in a smart way.]</p></li>
 </ol>
+<div id="determining-the-prior-distribution-of-the-model-parameters" class="section level2">
+<h2>Determining the prior Distribution of the Model Parameters</h2>
+<pre class="r"><code>temperatures_linkoeping = read.table(&quot;data/TempLinkoping.txt&quot;, header=TRUE)
+head(temperatures_linkoeping)</code></pre>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["time"],"name":[1],"type":["dbl"],"align":["right"]},{"label":["temp"],"name":[2],"type":["dbl"],"align":["right"]}],"data":[{"1":"0.002732240","2":"0.1","_rn_":"1"},{"1":"0.005464481","2":"-4.5","_rn_":"2"},{"1":"0.008196721","2":"-6.3","_rn_":"3"},{"1":"0.010928962","2":"-9.6","_rn_":"4"},{"1":"0.013661202","2":"-9.9","_rn_":"5"},{"1":"0.016393443","2":"-17.1","_rn_":"6"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<pre class="r"><code># Initial Parameters
+mu_0 = c(-10, 100, -100)
+omega_0 = 0.01
+nu_0 = 4
+sigma_sq_0 = 1
+
+# Model
+#linear_model = lm(temp ~ time + time^2, data = temperatures_linkoeping)
+
+#draw_prior_</code></pre>
+</div>
 </div>
 <div id="posterior-approximation-for-classification-with-wogistic-regression" class="section level1">
 <h1>Posterior Approximation for Classification with Wogistic Regression</h1>
@@ -384,6 +406,22 @@ Feature
 <h1>Source Code</h1>
 <pre class="r"><code>knitr::opts_chunk$set(echo = TRUE)
 library(kableExtra)
+
+temperatures_linkoeping = read.table(&quot;data/TempLinkoping.txt&quot;, header=TRUE)
+head(temperatures_linkoeping)
+
+
+# Initial Parameters
+mu_0 = c(-10, 100, -100)
+omega_0 = 0.01
+nu_0 = 4
+sigma_sq_0 = 1
+
+# Model
+#linear_model = lm(temp ~ time + time^2, data = temperatures_linkoeping)
+
+#draw_prior_
+
 
 variable = c(&quot;Work&quot;, &quot;Constant&quot;, &quot;HusbandInc&quot;, &quot;EducYears&quot;, &quot;ExpYears&quot;,
              &quot;ExpYears2&quot;, &quot;Age&quot;, &quot;NSmallChildren&quot;, &quot;NBigChildren&quot;)

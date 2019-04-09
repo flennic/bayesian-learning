@@ -3,20 +3,21 @@ title: "Bayesian Learning - Lab 01"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(kableExtra)
+set.seed(42)
 ```
 
 # Linear and Polynomial Regression
@@ -26,7 +27,7 @@ library(kableExtra)
 $$ time = \frac{\text{the number of days since beginning of year}}{366} $$
 The task is to perform a Bayesian analysis of a quadratic regression
 
-$$ temp = \beta_0 + \beta_1 \cdot time^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(,\sigma^2). $$
+$$ temp = \beta_0 + \beta_1 \cdot time + \beta_2  \cdot times^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(0,\sigma^2). $$
 a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters $\mu_0, \Omega_0,\nu_0$ and $\sigma_0^2$ to sensible values. Start with $\mu_0 = (-10, 100, -100)^T$ , $\Omega_0 = 0.01 \cdot I_3$, $\nu_0=4$ and $\sigma_0^2 = 1$. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look rea- sonable? If not, change the prior hyperparameters until the collection of prior regression curves do agree with your prior beliefs about the regression curve. [Hint: the R package `mvtnorm` will be handy. And use your $Inv-\chi^2$ simulator from Lab 1.]
 
 b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2$ and $\sigma^2$. Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time) = \beta_0 + \beta_1 \cdot time + \beta_2 \cdot time^2$, computed for every value of *time*. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for *f(time)*. That is, compute the 95% equal tail posterior probability intervals for every value of *time* and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
@@ -35,7 +36,81 @@ c) It is of interest to locate the time with the highest expected temperature (t
 
 d) Say now that you want to estimate a polynomial model of order 7, but you suspect that higher order terms may not be needed, and you worry about overfitting. Suggest a suitable prior that mitigates this potential problem. You do not need to compute the posterior, just write down your prior. [Hint: the task is to specify $\mu_0$ and $\Omega_0$ in a smart way.]
 
-# Posterior Approximation for Classification with Wogistic Regression
+## Determining the prior Distribution of the Model Parameters
+
+```{r}
+
+temperatures_linkoeping = read.table("data/TempLinkoping.txt", header=TRUE)
+head(temperatures_linkoeping)
+
+```
+
+```{r}
+
+# Initial Parameters
+mu_0 = c(-10, 100, -100)
+omega_0 = 0.01 * diag(3)
+nu_0 = 4
+sigma_sq_0 = 1
+n = 5 # Number of prior regression curves
+
+predict_using_model_params = function(time, mu_0, omega_0, nu_0, sigma_sq_0) {
+  
+  # Taken from slides (set 5, page 7)
+  # First we sample the model parameters
+  sigma_sq = rinvchisq(n = 1, df = nu_0, scale = sigma_sq_0)
+  beta = mvrnorm(n = 1, mu = mu_0, Sigma = sigma_sq * solve(omega_0))
+  
+  # Now we also need an error
+  error = rnorm(n = length(time), mean = 0, sd = sigma_sq)
+  
+  # Then we fit the model
+  temp =
+    matrix(c(rep(1, length(time)), time, time^2), ncol = 3) %*%
+    matrix(beta) +
+    error
+  
+  return(temp)
+}
+
+priors = matrix(0, ncol = n + 2, nrow = length(temperatures_linkoeping$time))
+priors[ ,1] = temperatures_linkoeping$time
+priors[ ,2] = temperatures_linkoeping$temp
+
+for (i in 3:(n+2)) {
+  priors[ , i] = predict_using_model_params(
+    temperatures_linkoeping$time, mu_0, omega_0, nu_0, sigma_sq_0)
+}
+
+```
+
+```{r}
+
+df = data.frame(priors)
+
+plot = ggplot(df) +
+  geom_point(aes(x = df[, 1], y = df[,2]), color = "black", fill = "#dedede",
+             shape = 21)
+  #for (i in 3:(n+2)) {
+  #  plot = plot + geom_line(aes(x = df[,1], y = df[,i], color = "Random Prior"))
+  #}
+  plot = plot + geom_line(aes(x = df[,1], y = df[,3], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,4], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,5], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,6], color = "Random Prior"))
+  plot = plot + geom_line(aes(x = df[,1], y = df[,7], color = "Random Prior"))
+  plot = plot + labs(title = "Day of Year VS Draft Number",
+  y = "Temperature", x = "Day of Year in Percent", color = "Legend")
+  plot = plot + scale_color_manual("Legend", values = rep("#C70039", n))
+  plot = plot + theme_minimal()
+  
+plot
+```
+
+
+
+
+# Posterior Approximation for Classification with Logistic Regression
 
 **Exercise:** The dataset `WomenWork.dat` contains $n = 200$ observations (i.e. women) on the following nine variables:
 
