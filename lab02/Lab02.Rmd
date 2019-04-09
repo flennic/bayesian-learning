@@ -41,12 +41,20 @@ d) Say now that you want to estimate a polynomial model of order 7, but you susp
 
 ## Determining the prior Distribution of the Model Parameters
 
-```{r}
+Let's first take a look at the date to get a feeling for it.
+
+```{r, echo = FALSE}
 
 temperatures_linkoeping = read.table("data/TempLinkoping.txt", header=TRUE)
 head(temperatures_linkoeping)
 
 ```
+
+We save the initial parameters to variables and provide a function which calculates $\sigma^2$ and $\beta$ from the given parameters, which we use a the parameters for the prior. The calculation is done as follows:
+
+1. First draw $\sigma^2$ from $Inv-\chi^2(\nu_0, \sigma_0^2)$
+2. Then draw $\beta$ from $\mathcal{N}(\mu_0,\sigma^2\Omega_0^{-1})$
+3. Calculate the prior according to $\hat{y} = X\beta$ where $X = (1, \text{temp}, \text{temp}^2)$. The first $1$ is the intercept.
 
 ```{r}
 
@@ -64,14 +72,9 @@ predict_using_model_params = function(time, mu_0, omega_0, nu_0, sigma_sq_0) {
   sigma_sq = rinvchisq(n = 1, df = nu_0, scale = sigma_sq_0)
   beta = mvrnorm(n = 1, mu = mu_0, Sigma = sigma_sq * solve(omega_0))
   
-  # Now we also need an error
-  error = rnorm(n = 1, mean = 0, sd = sigma_sq)
-  
-  # Then we fit the model
+  # Then we perform the regression
   temp =
-    matrix(c(rep(1, length(time)), time, time^2), ncol = 3) %*%
-    matrix(beta) +
-    error
+    matrix(c(rep(1, length(time)), time, time^2), ncol = 3) %*% matrix(beta)
   
   return(temp)
 }
@@ -102,7 +105,7 @@ plot = ggplot(df) +
   plot = plot + geom_line(aes(x = df[,1], y = df[,5], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,6], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,7], color = "Random Prior"))
-  plot = plot + labs(title = "Day of Year VS Draft Number",
+  plot = plot + labs(title = "Temperature over the Year",
   y = "Temperature", x = "Day of Year in Percent", color = "Legend")
   plot = plot + scale_color_manual("Legend", values = rep("#C70039", n))
   plot = plot + theme_minimal()
@@ -110,7 +113,7 @@ plot = ggplot(df) +
 plot
 ```
 
-
+We can see that the chosen parameters for our prior are not optimal and it should be easy to get a better prior. We therefor select the following new parameters:
 
 ```{r}
 
@@ -142,7 +145,6 @@ for (i in 3:(n+2)) {
 
 ```
 
-
 ```{r, echo = FALSE}
 
 df = data.frame(priors)
@@ -158,7 +160,7 @@ plot = ggplot(df) +
   plot = plot + geom_line(aes(x = df[,1], y = df[,5], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,6], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,7], color = "Random Prior"))
-  plot = plot + labs(title = "Day of Year VS Draft Number",
+  plot = plot + labs(title = "Temperature over the Year",
   y = "Temperature", x = "Day of Year in Percent", color = "Legend")
   plot = plot + scale_color_manual("Legend", values = rep("#C70039", n))
   plot = plot + theme_minimal()
@@ -166,6 +168,9 @@ plot = ggplot(df) +
 plot
 ```
 
+We see that the parameters make the prior fit better to the observed (optical inspected) data.
+
+## Simulating from the Joint Posterior Distribution
 
 
 # Posterior Approximation for Classification with Logistic Regression
