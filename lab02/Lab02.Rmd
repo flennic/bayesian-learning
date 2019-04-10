@@ -31,7 +31,7 @@ set.seed(42)
 $$ time = \frac{\text{the number of days since beginning of year}}{366} $$
 The task is to perform a Bayesian analysis of a quadratic regression
 
-$$ temp = \beta_0 + \beta_1 \cdot time + \beta_2  \cdot times^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(0,\sigma^2). $$
+$$ temp = \beta_0 + \beta_1 \cdot time + \beta_2  \cdot time^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(0,\sigma^2). $$
 a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters $\mu_0, \Omega_0,\nu_0$ and $\sigma_0^2$ to sensible values. Start with $\mu_0 = (-10, 100, -100)^T$ , $\Omega_0 = 0.01 \cdot I_3$, $\nu_0=4$ and $\sigma_0^2 = 1$. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look rea- sonable? If not, change the prior hyperparameters until the collection of prior regression curves do agree with your prior beliefs about the regression curve. [Hint: the R package `mvtnorm` will be handy. And use your $Inv-\chi^2$ simulator from Lab 1.]
 
 b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2$ and $\sigma^2$. Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time) = \beta_0 + \beta_1 \cdot time + \beta_2 \cdot time^2$, computed for every value of *time*. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for *f(time)*. That is, compute the 95% equal tail posterior probability intervals for every value of *time* and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
@@ -45,6 +45,10 @@ d) Say now that you want to estimate a polynomial model of order 7, but you susp
 Let's first take a look at the data to get a feeling for it.
 
 ```{r, echo = FALSE}
+
+################################################################################
+# Exercise 1.a)
+################################################################################
 
 temperatures_linkoeping = read.table("data/TempLinkoping.txt", header=TRUE)
 head(temperatures_linkoeping)
@@ -195,7 +199,13 @@ We can then do:
 1. $\sigma^2 \sim Inv-\chi^2(\nu_n, \sigma_n^2)$
 2. $\beta|\sigma^2 \sim \mathcal{N}(\mu_n, \sigma^2\Omega^{-1}_n)$
 
+We draw a new sample of parameters for the prior which we will use. We then define all the parameters used and create a function for sampling the posterior parameters.
+
 ```{r}
+
+################################################################################
+# Exercise 1.b)
+################################################################################
 
 # Simulate prior
 model_params = sample_prior_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
@@ -207,9 +217,9 @@ omega_n = t(X) %*%X + omega_0
 nu_n = nu_0 + n
 nu_n_and_sigma_sq_n = nu_0 * model_params$sigma_sq +
   (t(Y) %*% Y + t(mu_0) %*% omega_0 %*% mu_0 - t(mu_n) %*% omega_n %*% mu_n)
-sigma_sq_n = nu_n_and_sigma_sq_n / nu_n
+sigma_sq_n = as.numeric(nu_n_and_sigma_sq_n / nu_n)
 
-sample_prior_model_params = function (nu_n, sigma_sq_n, mu_n, omega_n) {
+sample_posterior_model_params = function (nu_n, sigma_sq_n, mu_n, omega_n) {
   
   # Taken from slides (set 5, page 7)
   sigma_sq = rinvchisq(n = 1, df = nu_n, scale = sigma_sq_n)
@@ -220,6 +230,8 @@ sample_prior_model_params = function (nu_n, sigma_sq_n, mu_n, omega_n) {
 
 ```
 
+The following plots show the samples parameters and their corresponding histogram.
+
 ```{r, echo = FALSE}
 
 df = data.frame()
@@ -227,7 +239,7 @@ df = data.frame()
 simulations = 1000
 
 for (i in 1:simulations) {
-  simulated_params = sample_prior_model_params(nu_n, sigma_sq_n, mu_n, omega_n)
+  simulated_params = sample_posterior_model_params(nu_n, sigma_sq_n, mu_n, omega_n)
   sample = list(sigma_sq = simulated_params$sigma_sq,
                 beta_0 = simulated_params$beta[1],
                 beta_1 = simulated_params$beta[2],
@@ -235,6 +247,8 @@ for (i in 1:simulations) {
   
   df = rbind(df, sample)
 }
+
+df_posterior_parameters = df # Saved for 1c)
 
 p1 = ggplot(df) +
   geom_histogram(aes(x = sigma_sq, y=..density..),
@@ -276,7 +290,7 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 
 ```
 
-Show the median.
+The following code predicts using the previously sampled parameters. It then calculates the median for each point of time in our grid.
 
 ```{r}
 
@@ -291,25 +305,105 @@ posterior_prediction_median = apply(posterior_predictions, 2, median)
 
 ```
 
+Looking at the plot we see that the posterior looks good. The requested credible interval can also be seen. The credible interval does not contain all of the data points as it just shows the interval for the median. If we would like to have the credible interval to cover most of the points, thus work on the general prediction of the data points, we would have to count in the variance as well. $\sigma_n^2$ is equal to `r sigma_sq_n`, so $\sigma = `r sqrt(sigma_sq_n)`$. If we take $2\sigma$ we should be able to capture around 95% of the points. The orange area thus shows the 95% credible intercal for the whole data.
 
-```{r, echo = FALSE}
+```{r}
 
 ci = apply(posterior_predictions, 2, quantile, probs = c(0.025, 0.975))
 lower = ci[1,]
 upper = ci[2,]
 
-df = data.frame(time, temp, posterior_prediction_median, lower, upper)
+upper_two_sigma = posterior_prediction_median + 2 * sqrt(sigma_sq_n)
+lower_two_sigma = posterior_prediction_median - 2 * sqrt(sigma_sq_n)
+
+
+```
+
+```{r, echo = FALSE}
+
+df = data.frame(time, temp, posterior_prediction_median, lower, upper,
+                upper_two_sigma, lower_two_sigma)
 
 ggplot(df) +
+  geom_ribbon(aes(x = time, ymin = lower_two_sigma, ymax = upper_two_sigma), fill = "orange", alpha = 0.25) +
+  geom_ribbon(aes(x = time, ymin = lower, ymax = upper), fill = "black", alpha = 0.3) +
   geom_point(aes(x = time, y = temp), color = "black", fill = "#dedede",
              shape = 21) +
-  geom_ribbon(aes(x = time, ymin = lower, ymax = upper), fill = "grey70", alpha = 0.75) +
   geom_line(aes(x = time, y = posterior_prediction_median,
                color = "Posterior Median")) +
   labs(title = "Temperature over the Year",
   y = "Temperature", x = "Day of Year in Percent", color = "Legend") +
   scale_color_manual("Legend", values = c("#C70039", "blue", "blue")) +
   theme_minimal()
+```
+
+## Simulating from the Posterior Distribution of $$\tilde{x}$$
+
+We can use the previous data set and simply take the maximum of each. Then we can plot the histrogram.
+
+We first take the derivate of the quadratic regression:
+
+$$\frac{temp}{\partial time} = \beta_1 + 2\beta_2 time$$
+Setting the equation to 0 and solving for time gives us:
+
+$$\tilde{x} = time = \frac{-\beta_1}{2\beta_2}$$
+So given a time we can easily calculated $\tilde{x}$. As this is just the fraction of which day of the year it represents, we can easily get back the the day of year.
+
+```{r}
+
+################################################################################
+# Exercise 1.c)
+################################################################################
+
+x_tilde = - df_posterior_parameters$beta_1 / (2 * df_posterior_parameters$beta_2)
+
+days = as.Date(trunc(366 * x_tilde), origin = "2014-01-01")
+
+```
+
+The following plot shows the histrogram of $\tilde{x}$ converted to date.
+
+```{r, echo = FALSE}
+
+ggplot(as.data.frame(days)) +
+  geom_histogram(aes(x = days, y=..density..),
+                 bins = sqrt(nrow(df)), color = "black",
+                 fill = "#DEDEDE") +
+  labs(title = "Days of the Year With Highest Temperature",
+       y = "Density", x = "Day of Year") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+```
+
+## Suitable Prior for Preventing Overfitting
+
+To not put to much emphasis on the higher order polynomials we need to specify a way to decrease the variance for the higher polynomials. If we take the previous $\sigma^2 = `r sigma_sq_n`$ we could introduce a penalty factor depending on the height of the polynomial. We can use a common $\sigma^2$ and multiply it by a constant $\kappa^o$ where $\kappa$ is between 0 and 1 and o is the order of the polynomial minus 1. So if we take the previous $\sigma^2$ we will get the following covariance matrix $\Omega_0$:
+
+```{r}
+
+order = 7
+kappa = 0.6
+omega_0 = rep(0, order)
+
+for (i in 1:order) {
+  omega_0[i] = sigma_sq_n * kappa^(i-1)
+}
+
+omega_0 = omega_0 * diag(order)
+
+omega_0
+
+```
+
+For $\mu_0$ we'd take the previous posterior values and set all the other values to zero, so we get:
+
+```{r}
+
+mu_0 = c(as.numeric(mu_n), rep(0, order - 3))
+
+mu_0
+
 ```
 
 
