@@ -41,7 +41,7 @@ d) Say now that you want to estimate a polynomial model of order 7, but you susp
 
 ## Determining the prior Distribution of the Model Parameters
 
-Let's first take a look at the date to get a feeling for it.
+Let's first take a look at the data to get a feeling for it.
 
 ```{r, echo = FALSE}
 
@@ -63,29 +63,39 @@ mu_0 = c(-10, 100, -100)
 omega_0 = 0.01 * diag(3)
 nu_0 = 4
 sigma_sq_0 = 1
-n = 5 # Number of prior regression curves
 
-predict_using_model_params = function(time, mu_0, omega_0, nu_0, sigma_sq_0) {
+# Helper Variables
+time = temperatures_linkoeping$time
+temp = temperatures_linkoeping$temp
+X = matrix(c(rep(1, length(time)), time, time^2), ncol = 3)
+Y = matrix(temperatures_linkoeping$temp)
+n = length(time) 
+m = 5 # Number of regression curves
+
+sample_model_params = function(X, mu_0, omega_0, nu_0, sigma_sq_0) {
   
   # Taken from slides (set 5, page 7)
-  # First we sample the model parameters
   sigma_sq = rinvchisq(n = 1, df = nu_0, scale = sigma_sq_0)
   beta = mvrnorm(n = 1, mu = mu_0, Sigma = sigma_sq * solve(omega_0))
   
-  # Then we perform the regression
-  temp =
-    matrix(c(rep(1, length(time)), time, time^2), ncol = 3) %*% matrix(beta)
-  
-  return(temp)
+  return(list(sigma_sq = sigma_sq, beta = beta))
 }
 
-priors = matrix(0, ncol = n + 2, nrow = length(temperatures_linkoeping$time))
-priors[ ,1] = temperatures_linkoeping$time
-priors[ ,2] = temperatures_linkoeping$temp
+predict_using_model_params = function(X, beta) {
+  
+  # Predicted temperatures
+  return(X %*% matrix(beta))
+}
 
-for (i in 3:(n+2)) {
-  priors[ , i] = predict_using_model_params(
-    temperatures_linkoeping$time, mu_0, omega_0, nu_0, sigma_sq_0)
+# This matrix holds the true X and Y and then the simulated priors
+priors = matrix(0, ncol = m + 2, nrow = n)
+priors[,1] = time
+priors[,2] = temp
+
+# Simulate m times for plotting
+for (i in 3:(m+2)) {
+  model_params = sample_model_params(X, mu_0, omega_0, nu_0, sigma_sq_0)
+  priors[,i] = predict_using_model_params(X, model_params$beta)
 }
 
 ```
@@ -122,7 +132,6 @@ mu_0 = c(-8, 90, -82)
 omega_0 = 0.2 * diag(3)
 nu_0 = 4
 sigma_sq_0 = 2
-n = 5 # Number of prior regression curves
 
 ```
 
@@ -134,13 +143,14 @@ n = 5 # Number of prior regression curves
 
 ```{r}
 
-priors = matrix(0, ncol = n + 2, nrow = length(temperatures_linkoeping$time))
-priors[ ,1] = temperatures_linkoeping$time
-priors[ ,2] = temperatures_linkoeping$temp
+priors = matrix(0, ncol = m + 2, nrow = n)
+priors[ ,1] = time
+priors[ ,2] = temp
 
-for (i in 3:(n+2)) {
-  priors[ , i] = predict_using_model_params(
-    temperatures_linkoeping$time, mu_0, omega_0, nu_0, sigma_sq_0)
+# Simulate m times for plotting
+for (i in 3:(m+2)) {
+  model_params = sample_model_params(X, mu_0, omega_0, nu_0, sigma_sq_0)
+  priors[,i] = predict_using_model_params(X, model_params$beta)
 }
 
 ```
@@ -171,6 +181,32 @@ plot
 We see that the parameters make the prior fit better to the observed (optical inspected) data.
 
 ## Simulating from the Joint Posterior Distribution
+
+For drawing $\beta$ and $\sigma$ from the posterior distribution we first have to calculate the different parameters:
+
+- $\mu_n = (X^TX + \Omega_0)^{-1}(X^TX\hat{\beta} + \Omega_0\mu_0)$
+- $\Omega_n = X^TX + \Omega_0$
+- $\nu_n = \nu_0 + n$
+- $\nu_n\sigma_n = \nu_0\sigma_0^2 + (y^Ty + \mu^T_0\Omega_0\mu_0 - \mu^T_n\Omega_n\mu_n)$
+
+We can then do:
+
+1. $\sigma^2 \sim Inv-\chi^2(\nu_n, \sigma_n^2)$
+2. $\beta|\sigma^2 \sim \mathcal{N}(\mu_0, \sigma^2\Omega^{-1}_0)$
+
+```{r}
+
+# Simulate prior
+sigma_sq = rinvchisq(n = 1, df = nu_0, scale = sigma_sq_0)
+beta = mvrnorm(n = 1, mu = mu_0, Sigma = sigma_sq * solve(omega_0))
+
+mu_n = solve(t(X) %*% X + omega_0[1,1]) %*% (t(X) %*% X %*% beta + omega_0 %*% mu_0)
+omega_n = t(X) %*%X + omega_0
+nu_n = nu_0 + n
+nu_n_and_sigma_n = nu_0 * sigma_sq_0 + (t(Y) %*% Y + t(mu_0) %*% omega_0 %*% mu_0 -
+                                          t(mu_n) %*% omega_n %*% mu_n)
+
+```
 
 
 # Posterior Approximation for Classification with Logistic Regression
@@ -225,11 +261,6 @@ where $\tilde{\beta}$ is the posterior mode and $J(\tilde{\beta}) = - \frac{\par
 where I have coded everything up for the spam prediction example (it also does probit regression, but that is not needed here). I want you to implement you own version of this. You can use my code as a template, but I want you to write your own file so that you understand every line of your code. Don’t just copy my code. Use the prior $\beta \sim \mathcal{N}(0, \tau^2I)$, with $\tau = 10$. Your report should include your code as well as numerical values for $\tilde{\beta}$ and $J^{(-1)}_y\tilde{\beta}$ for the `WomanWork` data. Compute an approximate 95% credible interval for the variable NSmallChild. Would you say that this feature is an important determinant of the probability that a women works?
 
 c) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(b). Use that function to simulate and plot the predictive distribution for the `Work` variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience. and a husband with an income of 10. [Hint: the R package `mvtnorm` will again be handy. And remember my discus- sion on how Bayesian prediction can be done by simulation.]
-
-
-
-
-
 
 # Source Code
 
