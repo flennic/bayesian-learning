@@ -20,6 +20,7 @@ library(kableExtra)
 library(geoR)
 library(MASS)
 library(ggplot2)
+library(gridExtra)
 set.seed(42)
 ```
 
@@ -72,7 +73,7 @@ Y = matrix(temperatures_linkoeping$temp)
 n = length(time) 
 m = 5 # Number of regression curves
 
-sample_model_params = function(X, mu_0, omega_0, nu_0, sigma_sq_0) {
+sample_prior_model_params = function(mu_0, omega_0, nu_0, sigma_sq_0) {
   
   # Taken from slides (set 5, page 7)
   sigma_sq = rinvchisq(n = 1, df = nu_0, scale = sigma_sq_0)
@@ -81,7 +82,7 @@ sample_model_params = function(X, mu_0, omega_0, nu_0, sigma_sq_0) {
   return(list(sigma_sq = sigma_sq, beta = beta))
 }
 
-predict_using_model_params = function(X, beta) {
+predict_using_model_params = function(beta, X) {
   
   # Predicted temperatures
   return(X %*% matrix(beta))
@@ -94,8 +95,8 @@ priors[,2] = temp
 
 # Simulate m times for plotting
 for (i in 3:(m+2)) {
-  model_params = sample_model_params(X, mu_0, omega_0, nu_0, sigma_sq_0)
-  priors[,i] = predict_using_model_params(X, model_params$beta)
+  model_params = sample_prior_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
+  priors[,i] = predict_using_model_params(model_params$beta, X)
 }
 
 ```
@@ -123,7 +124,7 @@ plot = ggplot(df) +
 plot
 ```
 
-We can see that the chosen parameters for our prior are not optimal and it should be easy to get a better prior. We therefor select the following new parameters:
+We can see that the chosen parameters for our prior are not optimal and it should be easy to get a better prior. We therefore select the following new parameters:
 
 ```{r}
 
@@ -149,8 +150,8 @@ priors[ ,2] = temp
 
 # Simulate m times for plotting
 for (i in 3:(m+2)) {
-  model_params = sample_model_params(X, mu_0, omega_0, nu_0, sigma_sq_0)
-  priors[,i] = predict_using_model_params(X, model_params$beta)
+  model_params = sample_prior_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
+  priors[,i] = predict_using_model_params(model_params$beta, X)
 }
 
 ```
@@ -192,20 +193,123 @@ For drawing $\beta$ and $\sigma$ from the posterior distribution we first have t
 We can then do:
 
 1. $\sigma^2 \sim Inv-\chi^2(\nu_n, \sigma_n^2)$
-2. $\beta|\sigma^2 \sim \mathcal{N}(\mu_0, \sigma^2\Omega^{-1}_0)$
+2. $\beta|\sigma^2 \sim \mathcal{N}(\mu_n, \sigma^2\Omega^{-1}_n)$
 
 ```{r}
 
 # Simulate prior
-sigma_sq = rinvchisq(n = 1, df = nu_0, scale = sigma_sq_0)
-beta = mvrnorm(n = 1, mu = mu_0, Sigma = sigma_sq * solve(omega_0))
+model_params = sample_prior_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
 
-mu_n = solve(t(X) %*% X + omega_0[1,1]) %*% (t(X) %*% X %*% beta + omega_0 %*% mu_0)
+# Posterior parameters
+mu_n = solve(t(X) %*% X + omega_0[1,1]) %*%
+  (t(X) %*% X %*% model_params$beta + omega_0 %*% mu_0)
 omega_n = t(X) %*%X + omega_0
 nu_n = nu_0 + n
-nu_n_and_sigma_n = nu_0 * sigma_sq_0 + (t(Y) %*% Y + t(mu_0) %*% omega_0 %*% mu_0 -
-                                          t(mu_n) %*% omega_n %*% mu_n)
+nu_n_and_sigma_sq_n = nu_0 * model_params$sigma_sq +
+  (t(Y) %*% Y + t(mu_0) %*% omega_0 %*% mu_0 - t(mu_n) %*% omega_n %*% mu_n)
+sigma_sq_n = nu_n_and_sigma_sq_n / nu_n
 
+sample_prior_model_params = function (nu_n, sigma_sq_n, mu_n, omega_n) {
+  
+  # Taken from slides (set 5, page 7)
+  sigma_sq = rinvchisq(n = 1, df = nu_n, scale = sigma_sq_n)
+  beta = mvrnorm(n = 1, mu = mu_n, Sigma = as.numeric(sigma_sq) * solve(omega_n))
+  
+  return(list(sigma_sq = sigma_sq, beta = beta))
+}
+
+```
+
+```{r, echo = FALSE}
+
+df = data.frame()
+
+simulations = 1000
+
+for (i in 1:simulations) {
+  simulated_params = sample_prior_model_params(nu_n, sigma_sq_n, mu_n, omega_n)
+  sample = list(sigma_sq = simulated_params$sigma_sq,
+                beta_0 = simulated_params$beta[1],
+                beta_1 = simulated_params$beta[2],
+                beta_2 = simulated_params$beta[3])
+  
+  df = rbind(df, sample)
+}
+
+p1 = ggplot(df) +
+  geom_histogram(aes(x = sigma_sq, y=..density..),
+                 bins = sqrt(nrow(df)), color = "black",
+                 fill = "#DEDEDE") +
+  labs(title = "Drawn sigma_sq",
+       y = "Density", x = "sigma_sq") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+p2 = ggplot(df) +
+  geom_histogram(aes(x = beta_0, y=..density..),
+                 bins = sqrt(nrow(df)), color = "black",
+                 fill = "#DEDEDE") +
+  labs(title = "Drawn beta_0",
+       y = "Density", x = "beta_0") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+p3 = ggplot(df) +
+  geom_histogram(aes(x = beta_1, y=..density..),
+                 bins = sqrt(nrow(df)), color = "black",
+                 fill = "#DEDEDE") +
+  labs(title = "Drawn beta_1",
+       y = "Density", x = "beta_1") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+p4 = ggplot(df) +
+  geom_histogram(aes(x = beta_2, y=..density..),
+                 bins = sqrt(nrow(df)), color = "black",
+                 fill = "#DEDEDE") +
+  labs(title = "Drawn beta_2",
+       y = "Density", x = "beta_2") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+
+```
+
+Show the median.
+
+```{r}
+
+posterior_predictions = matrix(0, ncol = n, nrow = simulations)
+
+for (i in 1:simulations) {
+  beta = unlist(df[i,2:4])
+  posterior_predictions[i,] = predict_using_model_params(beta, X)
+}
+
+posterior_prediction_median = apply(posterior_predictions, 2, median)
+
+```
+
+
+```{r, echo = FALSE}
+
+ci = apply(posterior_predictions, 2, quantile, probs = c(0.025, 0.975))
+lower = ci[1,]
+upper = ci[2,]
+
+df = data.frame(time, temp, posterior_prediction_median, lower, upper)
+
+ggplot(df) +
+  geom_point(aes(x = time, y = temp), color = "black", fill = "#dedede",
+             shape = 21) +
+  geom_ribbon(aes(x = time, ymin = lower, ymax = upper), fill = "grey70", alpha = 0.75) +
+  geom_line(aes(x = time, y = posterior_prediction_median,
+               color = "Posterior Median")) +
+  labs(title = "Temperature over the Year",
+  y = "Temperature", x = "Day of Year in Percent", color = "Legend") +
+  scale_color_manual("Legend", values = c("#C70039", "blue", "blue")) +
+  theme_minimal()
 ```
 
 
