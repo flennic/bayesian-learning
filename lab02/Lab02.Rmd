@@ -21,6 +21,8 @@ library(geoR)
 library(MASS)
 library(ggplot2)
 library(gridExtra)
+library(readr)
+library(mvtnorm)
 set.seed(42)
 ```
 
@@ -382,6 +384,10 @@ To not put to much emphasis on the higher order polynomials we need to specify a
 
 ```{r}
 
+################################################################################
+# Exercise 1.d)
+################################################################################
+
 order = 7
 kappa = 0.6
 omega_0 = rep(0, order)
@@ -442,7 +448,7 @@ where y is the binary variable with $y = 1$ if the woman works and $y = 0$ if sh
 
 ```{r, eval = FALSE}
 
-gmlModel = glm(Work ~ 0 + ., data = WomanWork, family = binomial)
+glmModel = glm(Work ~ 0 + ., data = WomanWork, family = binomial)
 
 ```
 
@@ -459,6 +465,136 @@ where $\tilde{\beta}$ is the posterior mode and $J(\tilde{\beta}) = - \frac{\par
 where I have coded everything up for the spam prediction example (it also does probit regression, but that is not needed here). I want you to implement you own version of this. You can use my code as a template, but I want you to write your own file so that you understand every line of your code. Don’t just copy my code. Use the prior $\beta \sim \mathcal{N}(0, \tau^2I)$, with $\tau = 10$. Your report should include your code as well as numerical values for $\tilde{\beta}$ and $J^{(-1)}_y\tilde{\beta}$ for the `WomanWork` data. Compute an approximate 95% credible interval for the variable NSmallChild. Would you say that this feature is an important determinant of the probability that a women works?
 
 c) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(b). Use that function to simulate and plot the predictive distribution for the `Work` variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience. and a husband with an income of 10. [Hint: the R package `mvtnorm` will again be handy. And remember my discus- sion on how Bayesian prediction can be done by simulation.]
+
+## Fitting the Logistic Model
+
+Lets first read the data and take a glance at it:
+
+```{r}
+
+################################################################################
+# Exercise 2.a)
+################################################################################
+
+woman_work_data = read_table("data/WomenWork.dat")
+kable(head(woman_work_data))
+
+```
+
+Then we can fit the model.
+
+```{r}
+
+glmModel = glm(Work ~ 0 + ., data = woman_work_data, family = binomial)
+summary(glmModel)
+
+```
+
+## Approximating the Posterior Distribution
+
+```{r}
+
+# Parameters
+Y = as.matrix(woman_work_data[,1])
+# We take all covariates
+X = as.matrix(woman_work_data[,2:ncol(woman_work_data)])
+# Feature names
+feature_names =  colnames(woman_work_data[,2:ncol(woman_work_data)])
+colnames(X) = feature_names
+
+# Defining the prior parameters
+tau_prior = 10
+sigma_prior = tau_prior^2 * diag(ncol(woman_work_data) - 1)
+mu_prior = rep(0, ncol(woman_work_data) - 1)
+# An we need initial beta parameters
+beta = rmvnorm(1, mu_prior, sigma_prior)
+
+# Cost-Function
+## We need cost function which will be optimized (e.g. the likelihood).
+## The first parameters has to be the regression coefficient
+## The function will calculate the log-likelihood and the log-prior for getting
+## the posterior-log-likelihood which is to be optimized
+## We use two sub-functions for the two logs
+
+log_likelihood = function(beta, X ,Y) {
+  llik = sum(-log(1 + exp((X %*% beta))) + Y * X %*% beta)
+  if (abs(llik) == Inf) return(-20000)
+  return(llik)
+}
+
+posterior_log_likelihood = function(beta, X, Y, sigma, mu) {
+  return(dmvnorm(beta, mu, sigma, log = TRUE) + log_likelihood(beta, X, Y))
+}
+
+res = optim(beta, posterior_log_likelihood, method = "BFGS",
+            control = list(fnscale = -1), hessian = TRUE,
+            X = X, Y = Y, sigma = sigma_prior, mu = mu_prior)
+
+# Now we use the results to extract the desired values and same them to
+# variables with a speaking name
+posterior_mode = as.vector(res$par)
+names(posterior_mode) = feature_names
+posterior_covariance = - solve(res$hessian)
+posterior_sd = sqrt(diag(posterior_covariance))
+names(posterior_sd) = feature_names
+
+```
+
+Now let us look at these results.
+
+**Posterior Mode ($\tilde{\beta}$) for the optim approach:**
+
+```{r, echo = FALSE}
+posterior_mode
+```
+
+**Posterior Mode ($\tilde{\beta}$) for the glm model:**
+
+```{r, echo = FALSE}
+glmModel$coefficients
+```
+
+**Approximated Standard Deviation:**
+
+```{r, echo = FALSE}
+posterior_sd
+```
+
+The folliwing code procudes the data for the plot. It also includes the 95% credible interval, which is the yellow area. To compute this, we simply take the mean and sigma of our desireed feature and plug it into the `qnorm()` function.
+
+```{r}
+
+# NSmallChild
+X_bar = seq(-3, posterior_mode[7] + 4*posterior_sd[7], length = 1000)
+Y_bar = dnorm(x = X_bar, mean = posterior_mode[7], sd = posterior_sd[7])
+
+df = data.frame(X_bar, Y_bar)
+
+# Credible Interval
+ci = qnorm(c(0.025, 0.975), mean = posterior_mode[7], sd = posterior_sd[7])
+ci_x = seq(from = ci[1], to = ci[2], length.out = 1000)
+ci_y = dnorm(ci_x, mean = posterior_mode[7], sd = posterior_sd[7])
+
+df_ci = data.frame(ci_x, ci_y)
+
+```
+
+```{r, echo = FALSE}
+
+ggplot(df) +
+  geom_ribbon(data = df_ci, aes(x = ci_x, ymin = 0, ymax = ci_y),
+              alpha = 0.5, fill = "#FFC300", color = "#FFC300") +
+  geom_line(aes(x = X_bar, y = Y_bar,
+               color = "NSmallChild")) +
+  geom_vline(xintercept = posterior_mode[7]) +
+  labs(title = "Marginal Posterior for NSmallChild",
+  y = "Density", x = "Value", color = "Legend") +
+  scale_color_manual("Legend", values = c("#C70039")) +
+  theme_minimal()
+
+```
+
+We think, as the whole interval is below 0, that this feature has a influance wether a woman is wokring or not. More specifically, the greater the number of small children, the less likely that the woman is working.
 
 # Source Code
 
