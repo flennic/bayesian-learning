@@ -24,6 +24,9 @@ library(gridExtra)
 library(readr)
 library(mvtnorm)
 set.seed(42)
+
+# Disable reard messages
+options(readr.num_columns = 0)
 ```
 
 # Linear and Polynomial Regression
@@ -53,9 +56,19 @@ Let's first take a look at the data to get a feeling for it.
 ################################################################################
 
 temperatures_linkoeping = read.table("data/TempLinkoping.txt", header=TRUE)
-head(temperatures_linkoeping)
 
 ```
+
+```{r, echo = FALSE}
+
+df = data.frame(head(temperatures_linkoeping))
+
+kable(df) %>%
+  kable_styling(position = "center") %>%
+  row_spec(0, bold=TRUE)
+
+```
+
 
 We save the initial parameters to variables and provide a function which calculates $\sigma^2$ and $\beta$ from the given parameters, which we use a the parameters for the prior. The calculation is done as follows:
 
@@ -114,8 +127,9 @@ df = data.frame(priors)
 plot = ggplot(df) +
   geom_point(aes(x = df[, 1], y = df[,2]), color = "black", fill = "#dedede",
              shape = 21)
-  #for (i in 3:(n+2)) {
-  #  plot = plot + geom_line(aes(x = df[,1], y = df[,i], color = "Random Prior"))
+  #for (i in 3:(m+2)) {
+  #  plot = plot + geom_line(aes(data = df, x = df[,1], y = df[,i],
+  #                                         color = "Random Prior"))
   #}
   plot = plot + geom_line(aes(x = df[,1], y = df[,3], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,4], color = "Random Prior"))
@@ -327,8 +341,10 @@ df = data.frame(time, temp, posterior_prediction_median, lower, upper,
                 upper_two_sigma, lower_two_sigma)
 
 ggplot(df) +
-  geom_ribbon(aes(x = time, ymin = lower_two_sigma, ymax = upper_two_sigma), fill = "orange", alpha = 0.25) +
-  geom_ribbon(aes(x = time, ymin = lower, ymax = upper), fill = "black", alpha = 0.3) +
+  geom_ribbon(aes(x = time, ymin = lower_two_sigma, ymax = upper_two_sigma),
+              fill = "orange", alpha = 0.25) +
+  geom_ribbon(aes(x = time, ymin = lower, ymax = upper), fill = "black",
+              alpha = 0.3) +
   geom_point(aes(x = time, y = temp), color = "black", fill = "#dedede",
              shape = 21) +
   geom_line(aes(x = time, y = posterior_prediction_median,
@@ -339,7 +355,7 @@ ggplot(df) +
   theme_minimal()
 ```
 
-## Simulating from the Posterior Distribution of $$\tilde{x}$$
+## Simulating from the Posterior Distribution
 
 We can use the previous data set and simply take the maximum of each. Then we can plot the histrogram.
 
@@ -436,7 +452,7 @@ colnames(df) = c("Variable", "Data Type", "Meaning", "Role")
 
 kable(df) %>%
   kable_styling(position = "center") %>%
-  row_spec(0,bold=TRUE)
+  row_spec(0, bold=TRUE)
 
 ```
 
@@ -464,7 +480,7 @@ where $\tilde{\beta}$ is the posterior mode and $J(\tilde{\beta}) = - \frac{\par
 
 where I have coded everything up for the spam prediction example (it also does probit regression, but that is not needed here). I want you to implement you own version of this. You can use my code as a template, but I want you to write your own file so that you understand every line of your code. Don’t just copy my code. Use the prior $\beta \sim \mathcal{N}(0, \tau^2I)$, with $\tau = 10$. Your report should include your code as well as numerical values for $\tilde{\beta}$ and $J^{(-1)}_y\tilde{\beta}$ for the `WomanWork` data. Compute an approximate 95% credible interval for the variable NSmallChild. Would you say that this feature is an important determinant of the probability that a women works?
 
-c) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(b). Use that function to simulate and plot the predictive distribution for the `Work` variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience. and a husband with an income of 10. [Hint: the R package `mvtnorm` will again be handy. And remember my discus- sion on how Bayesian prediction can be done by simulation.]
+c) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(b). Use that function to simulate and plot the predictive distribution for the `Work` variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience and a husband with an income of 10. [Hint: the R package `mvtnorm` will again be handy. And remember my discussion on how Bayesian prediction can be done by simulation.]
 
 ## Fitting the Logistic Model
 
@@ -477,7 +493,7 @@ Lets first read the data and take a glance at it:
 ################################################################################
 
 woman_work_data = read_table("data/WomenWork.dat")
-kable(head(woman_work_data))
+head(woman_work_data)
 
 ```
 
@@ -493,6 +509,10 @@ summary(glmModel)
 ## Approximating the Posterior Distribution
 
 ```{r}
+
+################################################################################
+# Exercise 2.b)
+################################################################################
 
 # Parameters
 Y = as.matrix(woman_work_data[,1])
@@ -595,6 +615,61 @@ ggplot(df) +
 ```
 
 We think, as the whole interval is below 0, that this feature has a influance wether a woman is wokring or not. More specifically, the greater the number of small children, the less likely that the woman is working.
+
+## Simulating from the Predictive Distribution
+
+We create our X which holds the given values, then we create a function that simulates the response variable for us.
+
+```{r}
+
+################################################################################
+# Exercise 2.c)
+################################################################################
+
+# Parameters
+X_woman = matrix(c(1, 10, 8, 10, (10/10)^2, 40, 1, 1))
+
+# Function for simulation
+simulate_posterior = function(n = 1000, X, mu_post, sigma_post) {
+  
+  # First we need to sample our betas
+  beta = rmvnorm(n = n, mean = mu_post, sigma = sigma_post)
+  
+  # We then apply the logistic regression given in the exercise
+  # This result will be the probability for y = 1 (woman works)
+  return(plogis(beta %*% X))
+}
+
+# We use the posterior mean and the previously created covariance matrix
+simulated_probabilities = simulate_posterior(n = 1000, X = X_woman,
+                                             mu_post = posterior_mode,
+                                             sigma_post = posterior_covariance)
+
+# Estimate density
+simulated_density = density(simulated_probabilities)
+
+```
+
+The following plot shows the histrogram and the estimated density of the predictive distribution. We can see that the woman is probably **not** working.
+
+```{r, echo = FALSE}
+
+df = data.frame(simulated_probabilities)
+df_density = data.frame(simulated_density$x, simulated_density$y)
+
+ggplot(df) +
+  geom_histogram(aes(x = simulated_probabilities, y=..density..),
+                 bins = sqrt(nrow(df)), color = "black",
+                 fill = "#DEDEDE") +
+  geom_line(data = df_density, aes(x = simulated_density.x,
+                                    y = simulated_density.y,
+                                    color = "Simulated Posterior Density")) +
+  labs(title = "Predictive Distribution of the Response Variablle",
+       y = "Density", x = "Simulated Probability") +
+  scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
+  theme_minimal()
+
+```
 
 # Source Code
 
