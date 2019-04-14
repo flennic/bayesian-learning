@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 01"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -318,6 +318,7 @@ for (i in 1:simulations) {
 }
 
 posterior_prediction_median = apply(posterior_predictions, 2, median)
+posterior_prediction_mean = apply(posterior_predictions, 2, mean)
 
 ```
 
@@ -329,8 +330,8 @@ ci = apply(posterior_predictions, 2, quantile, probs = c(0.025, 0.975))
 lower = ci[1,]
 upper = ci[2,]
 
-upper_two_sigma = posterior_prediction_median + 2 * sqrt(sigma_sq_n)
-lower_two_sigma = posterior_prediction_median - 2 * sqrt(sigma_sq_n)
+upper_two_sigma = posterior_prediction_mean + 2 * sqrt(sigma_sq_n)
+lower_two_sigma = posterior_prediction_mean - 2 * sqrt(sigma_sq_n)
 
 
 ```
@@ -493,7 +494,7 @@ Lets first read the data and take a glance at it:
 ################################################################################
 
 woman_work_data = read_table("data/WomenWork.dat")
-head(woman_work_data)
+kable(head(woman_work_data))
 
 ```
 
