@@ -1,5 +1,5 @@
 ---
-title: "Bayesian Learning - Lab 01"
+title: "Bayesian Learning - Lab 02"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
@@ -37,7 +37,7 @@ $$ time = \frac{\text{the number of days since beginning of year}}{366} $$
 The task is to perform a Bayesian analysis of a quadratic regression
 
 $$ temp = \beta_0 + \beta_1 \cdot time + \beta_2  \cdot time^2 + \epsilon, \epsilon \stackrel{iid}{\sim} \mathcal{N}(0,\sigma^2). $$
-a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters $\mu_0, \Omega_0,\nu_0$ and $\sigma_0^2$ to sensible values. Start with $\mu_0 = (-10, 100, -100)^T$ , $\Omega_0 = 0.01 \cdot I_3$, $\nu_0=4$ and $\sigma_0^2 = 1$. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look rea- sonable? If not, change the prior hyperparameters until the collection of prior regression curves do agree with your prior beliefs about the regression curve. [Hint: the R package `mvtnorm` will be handy. And use your $Inv-\chi^2$ simulator from Lab 1.]
+a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters $\mu_0, \Omega_0,\nu_0$ and $\sigma_0^2$ to sensible values. Start with $\mu_0 = (-10, 100, -100)^T$ , $\Omega_0 = 0.01 \cdot I_3$, $\nu_0=4$ and $\sigma_0^2 = 1$. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look reasonable? If not, change the prior hyperparameters until the collection of prior regression curves do agree with your prior beliefs about the regression curve. [Hint: the R package `mvtnorm` will be handy. And use your $Inv-\chi^2$ simulator from Lab 1.]
 
 b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2$ and $\sigma^2$. Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time) = \beta_0 + \beta_1 \cdot time + \beta_2 \cdot time^2$, computed for every value of *time*. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for *f(time)*. That is, compute the 95% equal tail posterior probability intervals for every value of *time* and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
 
@@ -69,7 +69,6 @@ kable(df) %>%
 
 ```
 
-
 We save the initial parameters to variables and provide a function which calculates $\sigma^2$ and $\beta$ from the given parameters, which we use a the parameters for the prior. The calculation is done as follows:
 
 1. First draw $\sigma^2$ from $Inv-\chi^2(\nu_0, \sigma_0^2)$
@@ -92,7 +91,7 @@ Y = matrix(temperatures_linkoeping$temp)
 n = length(time) 
 m = 5 # Number of regression curves
 
-sample_prior_model_params = function(mu_0, omega_0, nu_0, sigma_sq_0) {
+sample_model_params = function(mu_0, omega_0, nu_0, sigma_sq_0) {
   
   # Taken from slides (set 5, page 7)
   sigma_sq = rinvchisq(n = 1, df = nu_0, scale = sigma_sq_0)
@@ -114,7 +113,7 @@ priors[,2] = temp
 
 # Simulate m times for plotting
 for (i in 3:(m+2)) {
-  model_params = sample_prior_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
+  model_params = sample_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
   priors[,i] = predict_using_model_params(model_params$beta, X)
 }
 
@@ -170,7 +169,7 @@ priors[ ,2] = temp
 
 # Simulate m times for plotting
 for (i in 3:(m+2)) {
-  model_params = sample_prior_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
+  model_params = sample_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
   priors[,i] = predict_using_model_params(model_params$beta, X)
 }
 
@@ -224,25 +223,21 @@ We draw a new sample of parameters for the prior which we will use. We then defi
 ################################################################################
 
 # Simulate prior
-model_params = sample_prior_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
+model_params = sample_model_params(mu_0, omega_0, nu_0, sigma_sq_0)
+
+# Beta Hat
+#beta_hat = model_params$beta
+beta_hat = as.vector(lm(temp ~ time + I(time^2),
+                       data = temperatures_linkoeping)$coefficients)
 
 # Posterior parameters
-mu_n = solve(t(X) %*% X + omega_0[1,1]) %*%
-  (t(X) %*% X %*% model_params$beta + omega_0 %*% mu_0)
-omega_n = t(X) %*%X + omega_0
+mu_n = solve(t(X) %*% X + omega_0) %*%
+  (t(X) %*% X %*% beta_hat + omega_0 %*% mu_0)
+omega_n = t(X) %*% X + omega_0
 nu_n = nu_0 + n
-nu_n_and_sigma_sq_n = nu_0 * model_params$sigma_sq +
-  (t(Y) %*% Y + t(mu_0) %*% omega_0 %*% mu_0 - t(mu_n) %*% omega_n %*% mu_n)
+nu_n_and_sigma_sq_n = nu_0 * sigma_sq_0 +
+  (t(Y) %*% Y + (t(mu_0) %*% omega_0 %*% mu_0) - (t(mu_n) %*% omega_n %*% mu_n))
 sigma_sq_n = as.numeric(nu_n_and_sigma_sq_n / nu_n)
-
-sample_posterior_model_params = function (nu_n, sigma_sq_n, mu_n, omega_n) {
-  
-  # Taken from slides (set 5, page 7)
-  sigma_sq = rinvchisq(n = 1, df = nu_n, scale = sigma_sq_n)
-  beta = mvrnorm(n = 1, mu = mu_n, Sigma = as.numeric(sigma_sq) * solve(omega_n))
-  
-  return(list(sigma_sq = sigma_sq, beta = beta))
-}
 
 ```
 
@@ -255,7 +250,7 @@ df = data.frame()
 simulations = 1000
 
 for (i in 1:simulations) {
-  simulated_params = sample_posterior_model_params(nu_n, sigma_sq_n, mu_n, omega_n)
+  simulated_params = sample_model_params(mu_n, omega_n, nu_n, sigma_sq_n)
   sample = list(sigma_sq = simulated_params$sigma_sq,
                 beta_0 = simulated_params$beta[1],
                 beta_1 = simulated_params$beta[2],
