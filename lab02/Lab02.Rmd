@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 02"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -66,6 +66,21 @@ df = data.frame(head(temperatures_linkoeping))
 kable(df) %>%
   kable_styling(position = "center") %>%
   row_spec(0, bold=TRUE)
+
+df = data.frame(matrix(c(
+  temperatures_linkoeping$time,
+  temperatures_linkoeping$temp),
+  nrow = length(temperatures_linkoeping$time)))
+
+plot = ggplot(df) +
+  geom_point(aes(x = df[, 1], y = df[,2]), color = "black", fill = "#dedede",
+             shape = 21)
+  plot = plot + labs(title = "Temperature over the Year",
+  y = "Temperature", x = "Day of Year in Percent", color = "Legend")
+  plot = plot + scale_color_manual("Legend")
+  plot = plot + theme_minimal()
+  
+plot
 
 ```
 
@@ -123,13 +138,7 @@ for (i in 3:(m+2)) {
 
 df = data.frame(priors)
 
-plot = ggplot(df) +
-  geom_point(aes(x = df[, 1], y = df[,2]), color = "black", fill = "#dedede",
-             shape = 21)
-  #for (i in 3:(m+2)) {
-  #  plot = plot + geom_line(aes(data = df, x = df[,1], y = df[,i],
-  #                                         color = "Random Prior"))
-  #}
+plot = ggplot()
   plot = plot + geom_line(aes(x = df[,1], y = df[,3], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,4], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,5], color = "Random Prior"))
@@ -143,7 +152,7 @@ plot = ggplot(df) +
 plot
 ```
 
-We can see that the chosen parameters for our prior are not optimal and it should be easy to get a better prior. We therefore select the following new parameters:
+We can see that the chosen parameters do not seem optimal. Their variance seems to high and the temperatures should be lower at the end of the year. We therefore select the following new parameters:
 
 ```{r}
 
@@ -155,7 +164,7 @@ sigma_sq_0 = 2
 
 ```
 
-**$\mu_0$:** Looking at the data we want to slightly adjust the intercept, so we set the first entry of $\mu_0$ to `r mu_0[1]` (degrees). For the second linear regression coefficient we choose to set it to `r mu_0[2]` as the data trend seems to be warmer in the second half of the year and to capture the warm spike in the middle around 0.6 of the year. For the last linear regression coefficient we chose a value that pulls the curve down again on the right side so that it fits the data the most..
+**$\mu_0$:** We want to slightly adjust the intercept, so we set the first entry of $\mu_0$ to `r mu_0[1]` (degrees). For the second linear regression coefficient we choose to set it to `r mu_0[2]` as we think that the temperature is a little bit  warmer in the second half of the year and to capture the warm spike in summer. For the last linear regression coefficient we chose a value that pulls the curve down again on the right side so that it has a smooth transition between December and January.
 
 **$\Omega_0$:** The variance seems too high as we don't think the mean temperature will fluctuate that much, we thereby decrease it to `r omega_0[1,1]` (decrease as the inverse is taken).
 
@@ -179,12 +188,7 @@ for (i in 3:(m+2)) {
 
 df = data.frame(priors)
 
-plot = ggplot(df) +
-  geom_point(aes(x = df[, 1], y = df[,2]), color = "black", fill = "#dedede",
-             shape = 21)
-  #for (i in 3:(n+2)) {
-  #  plot = plot + geom_line(aes(x = df[,1], y = df[,i], color = "Random Prior"))
-  #}
+plot = ggplot()
   plot = plot + geom_line(aes(x = df[,1], y = df[,3], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,4], color = "Random Prior"))
   plot = plot + geom_line(aes(x = df[,1], y = df[,5], color = "Random Prior"))
@@ -610,7 +614,7 @@ ggplot(df) +
 
 ```
 
-We think, as the whole interval is below 0, that this feature has a influance wether a woman is wokring or not. More specifically, the greater the number of small children, the less likely that the woman is working.
+We think, as the whole interval is below 0, that this feature has an influence wether a woman is wokring or not. More specifically, the greater the number of small children, the less likely that the woman is working.
 
 ## Simulating from the Predictive Distribution
 
