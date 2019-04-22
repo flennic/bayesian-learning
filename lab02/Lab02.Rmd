@@ -31,7 +31,7 @@ options(readr.num_columns = 0)
 
 # Linear and Polynomial Regression
 
-**Exercise:** The dataset `TempLinkoping.txt` contains daily temperatures (in Celcius degrees) at Malslätt, Linköping over the course of the year 2016 (366 days since 2016 was a leap year). The response variable is temp and the covariate is
+**Exercise:** The dataset `TempLinkoping.txt` contains daily temperatures (in Celcius degrees) at Malsl??tt, Link??ping over the course of the year 2016 (366 days since 2016 was a leap year). The response variable is temp and the covariate is
 
 $$ time = \frac{\text{the number of days since beginning of year}}{366} $$
 The task is to perform a Bayesian analysis of a quadratic regression
@@ -41,7 +41,7 @@ a) Determining the prior distribution of the model parameters. Use the conjugate
 
 b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2$ and $\sigma^2$. Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time) = \beta_0 + \beta_1 \cdot time + \beta_2 \cdot time^2$, computed for every value of *time*. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for *f(time)*. That is, compute the 95% equal tail posterior probability intervals for every value of *time* and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
 
-c) It is of interest to locate the time with the highest expected temperature (that is, the time where f(time) is maximal). Let’s call this value $\tilde{x}$ Use the simulations in b) to simulate from the *posterior distribution of $\tilde{x}$*. [Hint: the regression curve is a quadratic. You can find a simple formula for $\tilde{x}$ given $\beta_0, \beta_1$ and $\beta_2$.]
+c) It is of interest to locate the time with the highest expected temperature (that is, the time where f(time) is maximal). Let???s call this value $\tilde{x}$ Use the simulations in b) to simulate from the *posterior distribution of $\tilde{x}$*. [Hint: the regression curve is a quadratic. You can find a simple formula for $\tilde{x}$ given $\beta_0, \beta_1$ and $\beta_2$.]
 
 d) Say now that you want to estimate a polynomial model of order 7, but you suspect that higher order terms may not be needed, and you worry about overfitting. Suggest a suitable prior that mitigates this potential problem. You do not need to compute the posterior, just write down your prior. [Hint: the task is to specify $\mu_0$ and $\Omega_0$ in a smart way.]
 
@@ -440,7 +440,7 @@ variable = c("Work", "Constant", "HusbandInc", "EducYears", "ExpYears",
 dataType = c("Binary", "1", "Numeric", "Counts", "Counts", "Numeric",
              "Counts", "Counts", "Counts")
 meaning = c("Whether or not the woman works", "Constant to the intercept",
-            "Husband’s income", "Years of education", "Years of experience",
+            "Husband???s income", "Years of education", "Years of experience",
             "(Years of experience/10)^2", "Age",
             "Number of child <= 6 years in household",
             "Number of child > 6 years in household")
@@ -468,17 +468,17 @@ glmModel = glm(Work ~ 0 + ., data = WomanWork, family = binomial)
 
 ```
 
-Note how I added a zero in the model formula so that R doesn’t add an extra intercept (we already have an intercept term from the Constant feature). Note also that a dot (.) in the model formula means to add all other variables in the dataset as features. `family = binomial` tells R that we want to fit a logistic regression.
+Note how I added a zero in the model formula so that R doesn???t add an extra intercept (we already have an intercept term from the Constant feature). Note also that a dot (.) in the model formula means to add all other variables in the dataset as features. `family = binomial` tells R that we want to fit a logistic regression.
 
 b) Now the fun begins. Our goal is to approximate the posterior distribution of the 8-dim parameter vector $\beta$ with a multivariate normal distribution
 
 $$\beta|y,X \sim \mathcal{N}(\tilde{\beta}, J^{(-1)}_y(\tilde{\beta})),$$
 
-where $\tilde{\beta}$ is the posterior mode and $J(\tilde{\beta}) = - \frac{\partial^2 ln p(\beta|y)}{\partial \beta \partial \beta^T}|_{\beta = \tilde{\beta}}$ is the observed Hessian evaluated at the posterior mode. Note that $\frac{\partial^2 ln p(\beta|y)}{\partial \beta \partial \beta^T}$ is an 8×8 matrix with second derivatives on the diagonal and cross-derivatives $\frac{\partial^2 ln p(\beta|y)}{\partial \beta_i \partial \beta_i^T}$ on the offdiagonal. It is actually not hard to compute this derivative by hand, but don’t worry, we will let the computer do it numerically for you. Now, both $\tilde{\beta}$ and $J(\tilde{\beta})$ are computed by the optim function in R. See my code
+where $\tilde{\beta}$ is the posterior mode and $J(\tilde{\beta}) = - \frac{\partial^2 ln p(\beta|y)}{\partial \beta \partial \beta^T}|_{\beta = \tilde{\beta}}$ is the observed Hessian evaluated at the posterior mode. Note that $\frac{\partial^2 ln p(\beta|y)}{\partial \beta \partial \beta^T}$ is an 8??8 matrix with second derivatives on the diagonal and cross-derivatives $\frac{\partial^2 ln p(\beta|y)}{\partial \beta_i \partial \beta_i^T}$ on the offdiagonal. It is actually not hard to compute this derivative by hand, but don???t worry, we will let the computer do it numerically for you. Now, both $\tilde{\beta}$ and $J(\tilde{\beta})$ are computed by the optim function in R. See my code
 
 [https://github.com/mattiasvillani/BayesLearnCourse/blob/master/Code/MainOptimizeSpam.zip](https://github.com/mattiasvillani/BayesLearnCourse/blob/master/Code/MainOptimizeSpam.zip)
 
-where I have coded everything up for the spam prediction example (it also does probit regression, but that is not needed here). I want you to implement you own version of this. You can use my code as a template, but I want you to write your own file so that you understand every line of your code. Don’t just copy my code. Use the prior $\beta \sim \mathcal{N}(0, \tau^2I)$, with $\tau = 10$. Your report should include your code as well as numerical values for $\tilde{\beta}$ and $J^{(-1)}_y\tilde{\beta}$ for the `WomanWork` data. Compute an approximate 95% credible interval for the variable NSmallChild. Would you say that this feature is an important determinant of the probability that a women works?
+where I have coded everything up for the spam prediction example (it also does probit regression, but that is not needed here). I want you to implement you own version of this. You can use my code as a template, but I want you to write your own file so that you understand every line of your code. Don???t just copy my code. Use the prior $\beta \sim \mathcal{N}(0, \tau^2I)$, with $\tau = 10$. Your report should include your code as well as numerical values for $\tilde{\beta}$ and $J^{(-1)}_y\tilde{\beta}$ for the `WomanWork` data. Compute an approximate 95% credible interval for the variable NSmallChild. Would you say that this feature is an important determinant of the probability that a women works?
 
 c) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(b). Use that function to simulate and plot the predictive distribution for the `Work` variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience and a husband with an income of 10. [Hint: the R package `mvtnorm` will again be handy. And remember my discussion on how Bayesian prediction can be done by simulation.]
 
@@ -668,6 +668,193 @@ ggplot(df) +
        y = "Density", x = "Simulated Probability") +
   scale_color_manual("Legend", values = c("#0039C7", "#000000")) +
   theme_minimal()
+
+```
+
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
+################################################################################
+# ALTERNATIVE METHOD
+################################################################################
+
+# Task 1a
+
+temp_data <- read.table("data/TempLinkoping.txt", header=TRUE, sep="\t")
+
+time <- temp_data$time
+temp <- temp_data$temp
+
+model <- lm(temp ~ time + I(time^2))
+
+mu_0 <- c(-10, 100, -100)
+om_0 <- diag(c(0.01, 0.01, 0.01))
+om_inv_0 <- solve(om_0)
+v_0 <- 4
+sigmasq_0 <- 1
+
+nDraws <- 150
+
+s2 <- (v_0 * sigmasq_0)/rchisq(nDraws, v_0)
+  
+plot(time, temp)
+for(k in 1:nDraws){
+  beta <- rmvnorm(1, mu_0, om_inv_0*s2[k])
+  lines(time, beta[1] + beta[2] * time + beta[3] * time^2, col="blue")
+}
+points(time, temp)
+
+mu0 <- model$coefficients
+om0 <- diag(c(5, 5, 5))
+ominv0 <- solve(om0)
+v0 <- 10
+sigmasq0 <- 16
+
+s2 <- (v0 * sigmasq0)/rchisq(nDraws, v0)
+  
+plot(time, temp)
+for(k in 1:nDraws){
+  beta <- rmvnorm(1, mu0, ominv0*s2[k])
+  lines(time, beta[1] + beta[2] * time + beta[3] * time^2, col="blue")
+}
+points(time, temp)
+
+# Task 1b
+
+X <- cbind(1, time, time^2)
+y <- temp
+XX <- t(X) %*% X
+yy <- t(y) %*% y
+n <- length(y)
+
+beta_hat <- solve(XX) %*% t(X) %*% y
+mu_n <- solve(XX + om0) %*% (XX %*% beta_hat + om0 %*% mu0)
+om_n <- XX + om0
+ominv_n <- solve(om_n)
+v_n <- v0 + n
+vn_sigmasq_n <- (v0 * sigmasq0) + (yy + (t(mu0) %*% om0 %*% mu0) - (t(mu_n) %*% om_n %*% mu_n)) /v_n
+vn_sigmasq_n <- vn_sigmasq_n[1]
+
+sigmasq <- (v_n * vn_sigmasq_n)/rchisq(nDraws, v_n)
+
+b <- data.frame()
+pDraws <- matrix(rep(0, n*nDraws), nDraws)
+for(k in 1:nDraws){
+  beta <- rmvnorm(1, mu_n, ominv_n*sigmasq[k])
+  b <- rbind(b, data.frame(beta0=beta[1], beta1=beta[2], beta2=beta[3]))
+  pDraws[k, 1:n] <- beta[1] + beta[2] * time + beta[3] * time^2
+}
+
+p1 <- ggplot()+
+  geom_histogram(aes(x=sigmasq, color="red"), bins=30) +
+  theme_bw()
+
+p2 <- ggplot(b)+
+  geom_histogram(aes(x=beta0, color="red"), bins=30) +
+  theme_bw()
+
+p3 <- ggplot(b)+
+  geom_histogram(aes(x=beta1, color="red"), bins=30) +
+  theme_bw()
+
+p4 <- ggplot(b)+
+  geom_histogram(aes(x=beta2, color="red"), bins=30) +
+  theme_bw()
+
+grid.arrange(p1, p2, p3, p4, nrow=2)
+
+pMedian <- apply(pDraws, 2, median)
+pDraws <- apply(pDraws, 2, sort)
+
+# lower <- pDraws[floor(nDraws * 0.025) + 1, 1:n]
+# upper <- pDraws[floor(nDraws * 0.975), 1:n]
+
+ci = apply(pDraws, 2, quantile, probs = c(0.025, 0.975))
+lower = ci[1,]
+upper = ci[2,]
+
+ggplot() +
+  geom_point(aes(x=time, y=temp)) +
+  geom_line(aes(x=time, y=pMedian, color="Median")) +
+  geom_line(aes(x=time, y=lower, color="Lower interval")) +
+  geom_line(aes(x=time, y=upper, color="Upper interval")) +
+  theme_bw()
+
+# Task 1c
+
+set.seed(12345)
+x_tilde <- c()
+for(k in 1:150){
+  beta <- rmvnorm(1, mu_n, ominv_n*sigmasq[k])
+  pDraws[k, 1:n] <- beta[1] + beta[2] * time + beta[3] * time^2
+  x_tilde <- c(x_tilde, -beta[2]/(2*beta[3]))
+}
+
+ggplot() +
+  geom_histogram(aes(x=x_tilde), bins=30, color="white")
+
+#--------------------------------------------------------------------------------------
+
+# Task 2a
+
+WomanWork <- read.table("data/WomenWork.dat", header = TRUE)
+gmlModel = glm(Work ~ 0 + ., data = WomanWork, family = binomial)
+
+# Task 2b
+
+n = dim(WomanWork)
+num = n[1]
+n = n[2]
+y = as.vector(WomanWork[, 1])
+X = as.matrix(WomanWork[, 2:n])
+cNames <- names(WomanWork)[2:n]
+n = n - 1
+
+tau = 10
+pmB = as.vector(rep(0, n))
+pJInv = diag(n) * tau * tau
+init = as.vector(rnorm(dim(X)[2]))
+
+logisticPostLoglikelihood = function(betas, y, X, pmB, pJInv){
+    inp = X %*% betas
+    
+    ll = sum(y*inp - log(1 + exp(inp)))
+    if(abs(ll) == Inf){
+        ll = -99999
+    }
+    
+    lp = dmvnorm(betas, pmB, pJInv, log=TRUE)
+    
+    return(ll + lp)
+}
+
+opt = optim(init, logisticPostLoglikelihood, gr=NULL, y, X, pmB, pJInv, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
+
+mB = opt$par
+JInv = -solve(opt$hessian)
+names(mB) = cNames
+
+# Posterior Mode:
+print(mB)
+# Inverse Negative Hessian:
+print(JInv)
+
+smallChildData = sort(WomanWork$NSmallChild)
+cred = c(smallChildData[floor(num * 0.05)], smallChildData[floor(num * 0.95)+1])
+cat("Credible Interval for number of small children: [", cred[1], ", ", cred[2], "]", sep="")
+
+# Task 2c
+
+nDraws = 100000
+x = c(1, 10, 8, 10, (10/10)^2, 40, 1, 1)
+betas = rmvnorm(nDraws, mB, JInv)
+probWork = 1/(1+exp(-betas %*% x))
+h=hist(probWork, breaks = 100)
+
+
+
+################################################################################
+# ALTERNATIVE METHOD END
+################################################################################
+
 
 ```
 
