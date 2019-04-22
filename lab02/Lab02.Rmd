@@ -730,7 +730,8 @@ mu_n <- solve(XX + om0) %*% (XX %*% beta_hat + om0 %*% mu0)
 om_n <- XX + om0
 ominv_n <- solve(om_n)
 v_n <- v0 + n
-vn_sigmasq_n <- (v0 * sigmasq0) + (yy + (t(mu0) %*% om0 %*% mu0) - (t(mu_n) %*% om_n %*% mu_n)) /v_n
+vn_sigmasq_n <- (v0 * sigmasq0) + (yy + (t(mu0) %*% om0 %*% mu0) -
+                                     (t(mu_n) %*% om_n %*% mu_n)) /v_n
 vn_sigmasq_n <- vn_sigmasq_n[1]
 
 sigmasq <- (v_n * vn_sigmasq_n)/rchisq(nDraws, v_n)
@@ -791,7 +792,7 @@ for(k in 1:150){
 ggplot() +
   geom_histogram(aes(x=x_tilde), bins=30, color="white")
 
-#--------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # Task 2a
 
@@ -826,7 +827,8 @@ logisticPostLoglikelihood = function(betas, y, X, pmB, pJInv){
     return(ll + lp)
 }
 
-opt = optim(init, logisticPostLoglikelihood, gr=NULL, y, X, pmB, pJInv, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
+opt = optim(init, logisticPostLoglikelihood, gr=NULL, y, X,
+            pmB, pJInv, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
 
 mB = opt$par
 JInv = -solve(opt$hessian)
@@ -839,7 +841,8 @@ print(JInv)
 
 smallChildData = sort(WomanWork$NSmallChild)
 cred = c(smallChildData[floor(num * 0.05)], smallChildData[floor(num * 0.95)+1])
-cat("Credible Interval for number of small children: [", cred[1], ", ", cred[2], "]", sep="")
+cat("Credible Interval for number of small children: [", cred[1], ", ",
+    cred[2], "]", sep="")
 
 # Task 2c
 
@@ -849,12 +852,9 @@ betas = rmvnorm(nDraws, mB, JInv)
 probWork = 1/(1+exp(-betas %*% x))
 h=hist(probWork, breaks = 100)
 
-
-
 ################################################################################
 # ALTERNATIVE METHOD END
 ################################################################################
-
 
 ```
 
