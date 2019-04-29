@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 02"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -651,6 +651,22 @@ simulated_density = density(simulated_probabilities)
 ```
 
 The following plot shows the histrogram and the estimated density of the predictive distribution. We can see that the woman is probably **not** working.
+
+**Note:** To be completely precise we actually should not take the probabilities directly, but plug them into a Bernoulli distribution and look at these results.
+
+```{r}
+
+predictive = rep(0, length(simulated_probabilities))
+
+for (i in 1:length(simulated_probabilities)) {
+  predictive[i] = rbinom(1, 1, simulated_probabilities[i])
+}
+
+probability_working = mean(predictive)
+
+```
+
+Therefore the women is working with a probability of `r probability_working * 100`%.
 
 ```{r, echo = FALSE}
 
