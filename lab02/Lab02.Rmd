@@ -468,7 +468,7 @@ glmModel = glm(Work ~ 0 + ., data = WomanWork, family = binomial)
 
 ```
 
-Note how I added a zero in the model formula so that R doesn???t add an extra intercept (we already have an intercept term from the Constant feature). Note also that a dot (.) in the model formula means to add all other variables in the dataset as features. `family = binomial` tells R that we want to fit a logistic regression.
+Note how I added a zero in the model formula so that R doesn't add an extra intercept (we already have an intercept term from the Constant feature). Note also that a dot (.) in the model formula means to add all other variables in the dataset as features. `family = binomial` tells R that we want to fit a logistic regression.
 
 b) Now the fun begins. Our goal is to approximate the posterior distribution of the 8-dim parameter vector $\beta$ with a multivariate normal distribution
 
@@ -652,17 +652,12 @@ simulated_density = density(simulated_probabilities)
 
 The following plot shows the histrogram and the estimated density of the predictive distribution. We can see that the woman is probably **not** working.
 
-**Note:** To be completely precise we actually should not take the probabilities directly, but plug them into a Bernoulli distribution and look at these results.
+**Note:** To be completely precise we actually should not take the probabilities directly, but plug them into a Binomial distribution and look at these results.
 
 ```{r}
 
-predictive = rep(0, length(simulated_probabilities))
-
-for (i in 1:length(simulated_probabilities)) {
-  predictive[i] = rbinom(1, 1, simulated_probabilities[i])
-}
-
-probability_working = mean(predictive)
+probability_working =
+  mean(rbinom(length(simulated_probabilities), 1, simulated_probabilities))
 
 ```
 
