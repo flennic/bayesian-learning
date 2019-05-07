@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 01"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -194,16 +194,29 @@ We calculate $\tau^2$, then we sample from `rinvchisq()` and compare the drawn s
 # Exercise 2.a)
 ################################################################################
 
+crinvchisq = function(n, df, s_sq) {
+  samples = rchisq(n, df)
+  # These are draws from the inverse chi squared
+  sigma_sq = (df - 1) * s_sq / samples
+  return(sigma_sq)
+}
+
+cdinvchisq = function(x, nu, tau_sq) {
+ return(((tau_sq * nu / 2)^(nu/2) / gamma(nu / 2)) *
+          (exp((-nu * tau_sq) / (2 * x)) / x^(1 + nu/2)))
+}
+
 obs = c(14, 25, 45, 25, 30, 33, 19, 50, 34, 67)
 n = length(obs)
 mu = 3.5
 tau_sq = (sum((log(obs) - mu)^2)) / (n)
 
-samples = rinvchisq(10000, n, tau_sq)
+samples = crinvchisq(10000, n, tau_sq)
 X = seq(from = 0, to = 4, length.out = 1000)
-Y = dinvchisq(X, n, tau_sq)
+Y = cdinvchisq(X, n, tau_sq)
 
 ```
+
 
 ```{r, echo = FALSE, eval = FALSE}
 
@@ -421,7 +434,8 @@ b) Find the (approximate) posterior mode of $\kappa$ from the information in a).
 
 mu = 2.39
 lambda = 1
-kappa = seq(from = 0.01, to = 20.0, by = 0.01)
+grid_distance = 0.01 
+kappa = seq(from = 0.01, to = 20.0, by = grid_distance)
 y = c(-2.44, 2.14, 2.54, 1.83, 2.02, 2.33, -2.79, 2.23, 2.07, 2.02)
 
 p = function(y, kappa, mu = 2.39) {
@@ -448,6 +462,7 @@ likelihood_values = likelihood(y, kappa, mu)
 # posterior(y, kappa, mu) would work as well but as we already have the values
 # we can save come computation time
 posterior_values = prior_values * likelihood_values
+posterior_values = posterior_values * (1/sum(posterior_values) * 1/grid_distance)
 
 ################################################################################
 # Exercise 3.b)
@@ -471,7 +486,7 @@ ggplot(df) +
   labs(title = "Prior, Likelihood and Posterior depending on kappa",
        y = "Density", x = "Kappa") +
   scale_color_manual("Legend", values = c("#FFC300", "#C70039", "#0039C7")) +
-  ylim(0, 6.1*10^(-5)) +
+  #ylim(0, 6.1*10^(-5)) +
   theme_minimal()
 
 ```
