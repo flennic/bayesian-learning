@@ -3,22 +3,23 @@ title: "Bayesian Learning - Lab 03"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
 ```
 
-# Normal Model, Mixture of Normal Nodel with Semi-Conjugate Prior
+# Normal Model, Mixture of Normal Model with Semi-Conjugate Prior
 
 **Exercise:** The data `rainfall.dat` consist of daily records, from the beginning of 1948 to the end of 1983, of precipitation (rain or snow in units of 1 inch, and records of zero 100 precipitation are excluded) at Snoqualmie Falls, Washington. Analyze the data using the following two models.
 
@@ -44,6 +45,94 @@ c) Plot the following densities in one figure:
 Use the posterior mean value for all the parameters.
 
 ## Normal Model
+
+First we load the data:
+
+```{r}
+
+################################################################################
+# Exercise 1.a)
+################################################################################
+
+rainfall_data = read.table("data/rainfall.dat", header=FALSE)
+
+# Prior Parameters (slides page 15)
+# These are basically random, guessed or from the data
+# mu
+mu_0 = 0
+tau_sq_0 = 1
+
+# sigma_sq
+nu_0 = 1
+sigma_sq_0 = 1 # sigma is 1/nu_0
+
+```
+
+```{r}
+
+crinvchisq = function(n, df, s_sq) {
+  samples = rchisq(n, df)
+  # These are draws from the inverse chi squared
+  sigma_sq = (df - 1) * s_sq / samples
+  return(sigma_sq)
+}
+
+```
+
+```{r}
+
+gibbs_sample = function(nDraws, data, default_sigma, tau_sq_0, mu_0, nu_0, sigma_sq_0) {
+  
+  # Posterior Parameters (Taken from lecture 2 slide 4)
+  n = length(data)
+  mu_n = mean(data) + mu_0
+  nu_n = nu_0 + n
+  default_sigma_sq = default_sigma^2
+  
+  # To store all iterative results
+  values_df = data.frame(matrix(NA, nrow = nDraws, ncol = 2))
+  
+  # To save current iterative results
+  values = list(mu = NaN, sigma_sq = default_sigma_sq)
+  
+  # As mu depends on sigma and sigma depends on mu, we need one initial value to start.
+  # In this implementation the default value to start with is sigma_sq.
+  
+  for (i in 1:nDraws) {
+    tau_sq_n = 1 / ((n/values$sigma) + (1/tau_sq_0))
+    values$mu = rnorm(1, mu_n, sqrt(tau_sq_n))
+    values$sigma_sq = crinvchisq(1, nu_n, (nu_0*sigma_sq_0 + sum((data - values$mu)^2))/(n + nu_0))
+    values_df[i,] = values
+  }
+  
+  return(values_df)
+}
+
+```
+
+```{r}
+
+res = gibbs_sample(nDraws = 1000,
+                   data = rainfall_data$V1, 
+                   default_sigma = 40,
+                   tau_sq_0 = tau_sq_0,
+                   mu_0 = mu_0,
+                   nu_0 = nu_0,
+                   sigma_sq_0 = sigma_sq_0)
+
+kable(head(res))
+
+```
+
+```{r}
+
+################################################################################
+# Exercise 1.b)
+################################################################################
+
+
+```
+
 
 ## Mixture Normal Model
 
