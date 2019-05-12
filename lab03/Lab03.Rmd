@@ -432,7 +432,84 @@ Now, use your new Metropolis function to sample from the posterior of $\beta$ in
 
 ## Maximum Likelihood Estimator
 
+First we load the data and have a look at it.
+
+```{r}
+
+################################################################################
+# Exercise 2.a)
+################################################################################
+
+ebay_data = read.table("data/eBayNumberOfBidderData.dat", header=TRUE)
+kable(head(ebay_data))
+
+```
+
+Now we fit the glm model:
+
+```{r}
+
+glm_model = glm(formula = nBids ~ ., data = ebay_data[,-2], family = poisson)
+summary(glm_model)
+
+glm_model$coefficients
+```
+
+**ToDo:** Comment about the significance of the coefficients/covariates.
+
 ## Bayesian Analysis of the Poisson Regression
+
+```{r}
+
+################################################################################
+# Exercise 2.b)
+################################################################################
+
+# Parameters
+Y = as.matrix(ebay_data[,1])
+# We take all covariates
+X = as.matrix(ebay_data[,-1])
+# Feature names
+feature_names =  colnames(ebay_data[,2:ncol(ebay_data)])
+colnames(X) = feature_names
+
+# Defining the prior parameters
+mu_prior = rep(0, ncol(ebay_data) - 1)
+covariate_prior = 100 * solve(t(X) %*% X)
+# An we need initial beta parameters
+beta = rmvnorm(1, mu_prior, covariate_prior)
+
+# Cost-Function
+## We need cost function which will be optimized (e.g. the likelihood).
+## The first parameters has to be the regression coefficient
+## The function will calculate the log-likelihood and the log-prior for getting
+## the posterior-log-likelihood which is to be optimized
+## We use two sub-functions for the two logs
+
+# https://nptel.ac.in/courses/111104074/Module14/Lecture41.pdf
+log_likelihood = function(beta, X ,Y) {
+  lambda = t(exp(X %*% beta)) # log-link function
+  llik = t(Y) %*% log(t(lambda)) - sum(lambda) - sum(log(factorial(Y)))
+  return(llik)
+}
+
+posterior_log_likelihood = function(beta, X, Y, sigma, mu) {
+  return(dmvnorm(beta, mu, sigma, log = TRUE) + log_likelihood(beta, X, Y))
+}
+
+res = optim(beta, posterior_log_likelihood, method = "BFGS",
+            control = list(fnscale = -1), hessian = TRUE,
+            X = X, Y = Y, sigma = covariate_prior, mu = mu_prior)
+
+# Now we use the results to extract the desired values and same them to
+# variables with a speaking name
+posterior_mode = as.vector(res$par)
+names(posterior_mode) = feature_names
+posterior_covariance = - solve(res$hessian)
+posterior_sd = sqrt(diag(posterior_covariance))
+names(posterior_sd) = feature_names
+
+```
 
 ## Simulate from the Actual Posterior Using the Metropolis Algorithm
 
