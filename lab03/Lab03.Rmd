@@ -46,7 +46,9 @@ Use the posterior mean value for all the parameters.
 
 ## Normal Model
 
-First we load the data:
+### Gibbs Sampler Implementation
+
+First we load the data and set the parameters for our prior.
 
 ```{r}
 
@@ -68,6 +70,8 @@ sigma_sq_0 = 1 # sigma is 1/nu_0
 
 ```
 
+This is a custom function to sample from the inverse chi squared distribution.
+
 ```{r}
 
 crinvchisq = function(n, df, s_sq) {
@@ -78,6 +82,8 @@ crinvchisq = function(n, df, s_sq) {
 }
 
 ```
+
+This is the Gibbs Sampler, which takes the number of draws, a default $\sigma$ (as both $\sigma$ and $\mu$ depend on each other we need to start somewhere) and some more parameters to calculate the posterior parameters.
 
 ```{r}
 
@@ -110,6 +116,8 @@ gibbs_sample = function(nDraws, data, default_sigma, tau_sq_0, mu_0, nu_0, sigma
 
 ```
 
+Now we call our Gibbs Sampler and print the draws.
+
 ```{r}
 
 res = gibbs_sample(nDraws = 1000,
@@ -124,14 +132,43 @@ kable(head(res))
 
 ```
 
-```{r}
+### Analysing the Precipitation
+
+This is the traceplot for $\mu$ including the trailing mean. We can see that the mean converges.
+
+```{r, echo = FALSE}
 
 ################################################################################
 # Exercise 1.b)
 ################################################################################
 
+plotdf = data.frame(1:nrow(res), res, cumsum(res$X1)/(1:nrow(res)),
+                    cumsum(res$X2)/(1:nrow(res)))
+colnames(plotdf) = c("index", "mu", "sigma_sq", "mu_trailing_mean",
+                     "sigma_sq_trailing_mean")
+
+ggplot(plotdf) +
+  geom_line(aes(x = index, y = mu), color = "#C70039") +
+  geom_line(aes(x = index, y = mu_trailing_mean), color = "#000000") +
+  labs(title = "Traceplot For Mu", y = "mu",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
 
 ```
+
+The same for $\sigma^2$.
+
+```{r, echo = FALSE}
+
+ggplot(plotdf) +
+  geom_line(aes(x = index, y = sigma_sq), color = "#C70039") +
+  geom_line(aes(x = index, y = sigma_sq_trailing_mean), color = "#000000") +
+  labs(title = "Traceplot For Mu", y = "mu",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+```
+
 
 
 ## Mixture Normal Model
