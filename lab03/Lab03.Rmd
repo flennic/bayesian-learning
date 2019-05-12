@@ -3,20 +3,21 @@ title: "Bayesian Learning - Lab 03"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(knitr)
+library(ggplot2)
 ```
 
 # Normal Model, Mixture of Normal Model with Semi-Conjugate Prior
@@ -111,6 +112,7 @@ gibbs_sample = function(nDraws, data, default_sigma, tau_sq_0, mu_0, nu_0, sigma
     values_df[i,] = values
   }
   
+  colnames(values_df) = c("mu", "sigma_sq")
   return(values_df)
 }
 
@@ -120,7 +122,7 @@ Now we call our Gibbs Sampler and print the draws.
 
 ```{r}
 
-res = gibbs_sample(nDraws = 1000,
+res = gibbs_sample(nDraws = 100,
                    data = rainfall_data$V1, 
                    default_sigma = 40,
                    tau_sq_0 = tau_sq_0,
@@ -142,15 +144,15 @@ This is the traceplot for $\mu$ including the trailing mean. We can see that the
 # Exercise 1.a ii)
 ################################################################################
 
-plotdf = data.frame(1:nrow(res), res, cumsum(res$X1)/(1:nrow(res)),
-                    cumsum(res$X2)/(1:nrow(res)))
+plotdf = data.frame(1:nrow(res), res, cumsum(res$mu)/(1:nrow(res)),
+                    cumsum(res$sigma_sq)/(1:nrow(res)))
 colnames(plotdf) = c("index", "mu", "sigma_sq", "mu_trailing_mean",
                      "sigma_sq_trailing_mean")
 
 ggplot(plotdf) +
   geom_line(aes(x = index, y = mu), color = "#C70039") +
   geom_line(aes(x = index, y = mu_trailing_mean), color = "#000000") +
-  labs(title = "Traceplot For Mu", y = "mu",
+  labs(title = "Traceplot for mu", y = "mu",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
@@ -163,7 +165,7 @@ The same for $\sigma^2$.
 ggplot(plotdf) +
   geom_line(aes(x = index, y = sigma_sq), color = "#C70039") +
   geom_line(aes(x = index, y = sigma_sq_trailing_mean), color = "#000000") +
-  labs(title = "Traceplot For Mu", y = "mu",
+  labs(title = "Traceplot for sigma_sq", y = "sigma_sq",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
@@ -253,10 +255,10 @@ all_mu = matrix(rep(NaN, nIter*nComp), nrow = nIter)
 all_sigma_sq = matrix(rep(NaN, nIter*nComp), nrow = nIter)
 
 for (k in 1:nIter){
-  message(paste('Iteration number:',k))
+  #message(paste('Iteration number:',k))
   alloc <- S2alloc(S) # Just a function that converts between different representations of the group allocations
   nAlloc <- colSums(S)
-  print(nAlloc)
+  #print(nAlloc)
   # Update components probabilities
   pi <- rDirichlet(alpha + nAlloc)
   
@@ -322,6 +324,10 @@ This is the traceplot for $\mu$.
 
 ```{r, echo = FALSE}
 
+################################################################################
+# Exercise 1.c)
+################################################################################
+
 mu_plot_dataframe = data.frame(1:nIter, all_mu, cumsum(all_mu[,1])/(1:nrow(all_mu)),
                                cumsum(all_mu[,2])/(1:nrow(all_mu)))
 colnames(mu_plot_dataframe) = c("index", "mu_1", "mu_2",
@@ -363,6 +369,32 @@ ggplot(sigma_sq_plot_dataframe) +
 **Convergence:** As we can see from the different trace plots the parameters actually converge the same as in the previous exercise. More iterations will make the result more accurate but we set it to a low amount of iterations to have a better zoom on the start of the process to observe the burn-in period.
 
 ## Graphical Comparison
+
+The following plot shows the densities of teh data and the two models.
+
+```{r, echo = FALSE}
+
+x = xGrid
+density_data = density(rainfall_data$V1, from = x[1], to = x[length(x)], n = length(x))$y
+density_normal = dnorm(x, mean = mean(res$mu), sd = sqrt(mean(res$sigma_sq)))
+density_mixture = mixDensMean
+
+density_comparison_df = data.frame(x,
+                                   density_data,
+                                   density_normal,
+                                   density_mixture)
+
+ggplot(density_comparison_df) +
+  geom_line(aes(x = x, y = density_data, colour = "Data Kernel Density")) +
+  geom_line(aes(x = x, y = density_normal, colour = "Normal Density")) +
+  geom_line(aes(x = x, y = density_mixture, colour = "Mixture Density")) +
+  labs(title = "Densities for the Different Model", y = "Density",
+  x = "Iteration", color = "Legend") +
+  scale_color_manual("Legend", values = c("#C70039", "#581845", "#6091EC")) +
+  theme_minimal()
+
+```
+
 
 # Metropolis Random Walk for Poisson Regression
 
