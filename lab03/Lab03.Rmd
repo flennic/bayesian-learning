@@ -53,7 +53,7 @@ First we load the data and set the parameters for our prior.
 ```{r}
 
 ################################################################################
-# Exercise 1.a)
+# Exercise 1.a i)
 ################################################################################
 
 rainfall_data = read.table("data/rainfall.dat", header=FALSE)
@@ -139,7 +139,7 @@ This is the traceplot for $\mu$ including the trailing mean. We can see that the
 ```{r, echo = FALSE}
 
 ################################################################################
-# Exercise 1.b)
+# Exercise 1.a ii)
 ################################################################################
 
 plotdf = data.frame(1:nrow(res), res, cumsum(res$X1)/(1:nrow(res)),
@@ -169,9 +169,198 @@ ggplot(plotdf) +
 
 ```
 
-
-
 ## Mixture Normal Model
+
+```{r}
+
+################################################################################
+# Exercise 1.b)
+################################################################################
+
+# This is the script provied in 'NormalMixtureGibbs.R' with minor ajustments.
+
+# Estimating a simple mixture of normals
+# Author: Mattias Villani, IDA, Linkoping University. http://mattiasvillani.com
+
+##########    BEGIN USER INPUT #################
+# Data options
+x <- as.matrix(rainfall_data$V1)
+
+# Model options
+## COMMENT: As the given model has two guassians we set this to two.
+nComp <- 2    # Number of mixture components
+
+# Prior options
+alpha <- 10*rep(1,nComp) # Dirichlet(alpha)
+muPrior <- rep(0,nComp) # Prior mean of mu
+tau2Prior <- rep(10,nComp) # Prior std of mu
+sigma2_0 <- rep(var(x),nComp) # s20 (best guess of sigma2)
+nu0 <- rep(4,nComp) # degrees of freedom for prior on sigma2
+
+# MCMC options
+nIter <- 100 # Number of Gibbs sampling draws
+
+# Plotting options
+plotFit <- TRUE
+lineColors <- c("blue", "green", "magenta", 'yellow')
+# We removed the sleep time
+sleepTime <- 0.1 # Adding sleep time between iterations for plotting
+################   END USER INPUT ###############
+
+###### Defining a function that simulates from the 
+rScaledInvChi2 <- function(n, df, scale){
+  return((df*scale)/rchisq(n,df=df))
+}
+
+####### Defining a function that simulates from a Dirichlet distribution
+rDirichlet <- function(param){
+  nCat <- length(param)
+  piDraws <- matrix(NA,nCat,1)
+  for (j in 1:nCat){
+    piDraws[j] <- rgamma(1,param[j],1)
+  }
+  piDraws = piDraws/sum(piDraws) # Diving every column of piDraws by the sum of the elements in that column.
+  return(piDraws)
+}
+
+# Simple function that converts between two different representations of the mixture allocation
+S2alloc <- function(S){
+  n <- dim(S)[1]
+  alloc <- rep(0,n)
+  for (i in 1:n){
+    alloc[i] <- which(S[i,] == 1)
+  }
+  return(alloc)
+}
+
+# Initial value for the MCMC
+nObs <- length(x)
+S <- t(rmultinom(nObs, size = 1 , prob = rep(1/nComp,nComp))) # nObs-by-nComp matrix with component allocations.
+mu <- quantile(x, probs = seq(0,1,length = nComp))
+sigma2 <- rep(var(x),nComp)
+probObsInComp <- rep(NA, nComp)
+
+# Setting up the plot
+xGrid <- seq(min(x)-1*apply(x,2,sd),max(x)+1*apply(x,2,sd),length = 100)
+xGridMin <- min(xGrid)
+xGridMax <- max(xGrid)
+mixDensMean <- rep(0,length(xGrid))
+effIterCount <- 0
+ylim <- c(0,2*max(hist(x)$density))
+
+# Added for stroring the draws and print the plots
+all_mu = matrix(rep(NaN, nIter*nComp), nrow = nIter)
+all_sigma_sq = matrix(rep(NaN, nIter*nComp), nrow = nIter)
+
+for (k in 1:nIter){
+  message(paste('Iteration number:',k))
+  alloc <- S2alloc(S) # Just a function that converts between different representations of the group allocations
+  nAlloc <- colSums(S)
+  print(nAlloc)
+  # Update components probabilities
+  pi <- rDirichlet(alpha + nAlloc)
+  
+  # Update mu's
+  for (j in 1:nComp){
+    precPrior <- 1/tau2Prior[j]
+    precData <- nAlloc[j]/sigma2[j]
+    precPost <- precPrior + precData
+    wPrior <- precPrior/precPost
+    muPost <- wPrior*muPrior + (1-wPrior)*mean(x[alloc == j])
+    tau2Post <- 1/precPost
+    mu[j] <- rnorm(1, mean = muPost, sd = sqrt(tau2Post))
+  }
+  
+  # Update sigma2's
+  for (j in 1:nComp){
+    sigma2[j] <- rScaledInvChi2(1, df = nu0[j] + nAlloc[j], scale = (nu0[j]*sigma2_0[j] + sum((x[alloc == j] - mu[j])^2))/(nu0[j] + nAlloc[j]))
+  }
+  
+    all_mu[k,] = mu
+    all_sigma_sq[k,] = sigma2
+  
+  # Update allocation
+  for (i in 1:nObs){
+    for (j in 1:nComp){
+      probObsInComp[j] <- pi[j]*dnorm(x[i], mean = mu[j], sd = sqrt(sigma2[j]))
+    }
+    S[i,] <- t(rmultinom(1, size = 1 , prob = probObsInComp/sum(probObsInComp)))
+  }
+  
+  # Printing the fitted density against data histogram
+  if (plotFit && (k == nIter)){
+    effIterCount <- effIterCount + 1
+    hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = paste("Iteration number",k), ylim = ylim)
+    mixDens <- rep(0,length(xGrid))
+    components <- c()
+    for (j in 1:nComp){
+      compDens <- dnorm(xGrid,mu[j],sd = sqrt(sigma2[j]))
+      mixDens <- mixDens + pi[j]*compDens
+      lines(xGrid, compDens, type = "l", lwd = 2, col = lineColors[j])
+      components[j] <- paste("Component ",j)
+    }
+    mixDensMean <- ((effIterCount-1)*mixDensMean + mixDens)/effIterCount
+    
+    lines(xGrid, mixDens, type = "l", lty = 2, lwd = 3, col = 'red')
+    legend("topleft", box.lty = 1, legend = c("Data histogram",components, 'Mixture'), 
+           col = c("black",lineColors[1:nComp], 'red'), lwd = 2)
+    #Sys.sleep(sleepTime)
+  }
+}
+
+hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = "Final fitted density")
+lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 4, col = "red")
+lines(xGrid, dnorm(xGrid, mean = mean(x), sd = apply(x,2,sd)), type = "l", lwd = 2, col = "blue")
+legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density","Normal density"), col=c("black","red","blue"), lwd = 2)
+
+#########################    Helper functions    ##############################################
+
+
+```
+
+This is the traceplot for $\mu$.
+
+```{r, echo = FALSE}
+
+mu_plot_dataframe = data.frame(1:nIter, all_mu, cumsum(all_mu[,1])/(1:nrow(all_mu)),
+                               cumsum(all_mu[,2])/(1:nrow(all_mu)))
+colnames(mu_plot_dataframe) = c("index", "mu_1", "mu_2",
+                                "mu_1_trailing_mean", "mu_2_trailing_mean")
+
+ggplot(mu_plot_dataframe) +
+  geom_line(aes(x = index, y = mu_1), color = "#C70039") +
+  geom_line(aes(x = index, y = mu_1_trailing_mean), color = "#000000") +
+  geom_line(aes(x = index, y = mu_2), color = "#6091EC") +
+  geom_line(aes(x = index, y = mu_2_trailing_mean), color = "#000000") +
+  labs(title = "Traceplot for mu_1 and mu_2", y = "mu",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+```
+
+This is the traceplot for $\sigma$.
+
+```{r, echo = FALSE}
+
+sigma_sq_plot_dataframe = data.frame(1:nIter, all_sigma_sq, cumsum(all_sigma_sq[,1])/(1:nrow(all_sigma_sq)),
+                               cumsum(all_sigma_sq[,2])/(1:nrow(all_sigma_sq)))
+colnames(sigma_sq_plot_dataframe) = c("index", "sigma_sq_1", "sigma_sq_2",
+                                "sigma_sq_1_trailing_mean", "sigma_sq_2_trailing_mean")
+
+ggplot(sigma_sq_plot_dataframe) +
+  geom_line(aes(x = index, y = sigma_sq_1), color = "#C70039") +
+  geom_line(aes(x = index, y = sigma_sq_1_trailing_mean), color = "#000000") +
+  geom_line(aes(x = index, y = sigma_sq_2), color = "#6091EC") +
+  geom_line(aes(x = index, y = sigma_sq_2_trailing_mean), color = "#000000") +
+  labs(title = "Traceplot for sigma_sq_1 and sigma_sq_2", y = "sigma_sq",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+```
+
+**Parameters of the Prior:** Without looking at the data we have no clear idea of the priors should look like. We can assume that probably the mean is greater than 0, but about the variance or $\alpha$ we do not really have an idea. That's why we leave the parameters as they are. The default implementation actially takes the variance of the data for the prior, where we think that's not 100 percent appropriate but it depends on the problems one tackles in the real world of course. In addition it shouldn't matter that much because after the burn-in period the prior shouldn't matter any more to discover the posterior density function.
+
+**Convergence:** As we can see from the different trace plots the parameters actually converge the same as in the previous exercise. More iterations will make the result more accurate but we set it to a low amount of iterations to have a better zoom on the start of the process to observe the burn-in period.
 
 ## Graphical Comparison
 
