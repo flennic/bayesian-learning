@@ -90,7 +90,8 @@ This is the Gibbs Sampler, which takes the number of draws, a default $\sigma$ (
 
 ```{r}
 
-gibbs_sample = function(nDraws, data, default_sigma, tau_sq_0, mu_0, nu_0, sigma_sq_0) {
+gibbs_sample = function(nDraws, data, default_sigma, tau_sq_0, mu_0, nu_0,
+                        sigma_sq_0) {
   
   # Posterior Parameters (Taken from lecture 2 slide 4)
   n = length(data)
@@ -110,7 +111,8 @@ gibbs_sample = function(nDraws, data, default_sigma, tau_sq_0, mu_0, nu_0, sigma
   for (i in 1:nDraws) {
     tau_sq_n = 1 / ((n/values$sigma) + (1/tau_sq_0))
     values$mu = rnorm(1, mu_n, sqrt(tau_sq_n))
-    values$sigma_sq = crinvchisq(1, nu_n, (nu_0*sigma_sq_0 + sum((data - values$mu)^2))/(n + nu_0))
+    values$sigma_sq =
+      crinvchisq(1, nu_n,(nu_0*sigma_sq_0 + sum((data - values$mu)^2))/(n + nu_0))
     values_df[i,] = values
   }
   
@@ -223,11 +225,13 @@ rDirichlet <- function(param){
   for (j in 1:nCat){
     piDraws[j] <- rgamma(1,param[j],1)
   }
-  piDraws = piDraws/sum(piDraws) # Diving every column of piDraws by the sum of the elements in that column.
+  # Diving every column of piDraws by the sum of the elements in that column.
+  piDraws = piDraws/sum(piDraws) 
   return(piDraws)
 }
 
-# Simple function that converts between two different representations of the mixture allocation
+# Simple function that converts between two different representations of the
+# mixture allocation
 S2alloc <- function(S){
   n <- dim(S)[1]
   alloc <- rep(0,n)
@@ -239,7 +243,8 @@ S2alloc <- function(S){
 
 # Initial value for the MCMC
 nObs <- length(x)
-S <- t(rmultinom(nObs, size = 1 , prob = rep(1/nComp,nComp))) # nObs-by-nComp matrix with component allocations.
+# nObs-by-nComp matrix with component allocations.
+S <- t(rmultinom(nObs, size = 1 , prob = rep(1/nComp,nComp))) 
 mu <- quantile(x, probs = seq(0,1,length = nComp))
 sigma2 <- rep(var(x),nComp)
 probObsInComp <- rep(NA, nComp)
@@ -258,7 +263,9 @@ all_sigma_sq = matrix(rep(NaN, nIter*nComp), nrow = nIter)
 
 for (k in 1:nIter){
   #message(paste('Iteration number:',k))
-  alloc <- S2alloc(S) # Just a function that converts between different representations of the group allocations
+  # Just a function that converts between different representations of the
+  # group allocations
+  alloc <- S2alloc(S) 
   nAlloc <- colSums(S)
   #print(nAlloc)
   # Update components probabilities
@@ -277,7 +284,11 @@ for (k in 1:nIter){
   
   # Update sigma2's
   for (j in 1:nComp){
-    sigma2[j] <- rScaledInvChi2(1, df = nu0[j] + nAlloc[j], scale = (nu0[j]*sigma2_0[j] + sum((x[alloc == j] - mu[j])^2))/(nu0[j] + nAlloc[j]))
+    sigma2[j] <- rScaledInvChi2(1, df = nu0[j] + nAlloc[j],
+                                scale = (nu0[j]*sigma2_0[j] +
+                                           sum((x[alloc == j] -
+                                           mu[j])^2))/(nu0[j] +
+                                           nAlloc[j]))
   }
   
     all_mu[k,] = mu
@@ -294,7 +305,8 @@ for (k in 1:nIter){
   # Printing the fitted density against data histogram
   if (plotFit && (k == nIter)){
     effIterCount <- effIterCount + 1
-    hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = paste("Iteration number",k), ylim = ylim)
+    hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax),
+         main = paste("Iteration number",k), ylim = ylim)
     mixDens <- rep(0,length(xGrid))
     components <- c()
     for (j in 1:nComp){
@@ -306,18 +318,23 @@ for (k in 1:nIter){
     mixDensMean <- ((effIterCount-1)*mixDensMean + mixDens)/effIterCount
     
     lines(xGrid, mixDens, type = "l", lty = 2, lwd = 3, col = 'red')
-    legend("topleft", box.lty = 1, legend = c("Data histogram",components, 'Mixture'), 
+    legend("topright", box.lty = 1, legend = c("Data histogram", components,
+                                              'Mixture'), 
            col = c("black",lineColors[1:nComp], 'red'), lwd = 2)
     #Sys.sleep(sleepTime)
   }
 }
 
-hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = "Final fitted density")
+hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax),
+     main = "Final fitted density")
 lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 4, col = "red")
-lines(xGrid, dnorm(xGrid, mean = mean(x), sd = apply(x,2,sd)), type = "l", lwd = 2, col = "blue")
-legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density","Normal density"), col=c("black","red","blue"), lwd = 2)
+lines(xGrid, dnorm(xGrid, mean = mean(x), sd = apply(x,2,sd)), type = "l",
+      lwd = 2, col = "blue")
+legend("topright", box.lty = 1,
+       legend = c("Data histogram","Mixture density", "Normal density"),
+       col = c("black","red","blue"), lwd = 2)
 
-#########################    Helper functions    ##############################################
+#########################    Helper functions    ###############################
 
 
 ```
@@ -350,10 +367,13 @@ This is the traceplot for $\sigma$.
 
 ```{r, echo = FALSE}
 
-sigma_sq_plot_dataframe = data.frame(1:nIter, all_sigma_sq, cumsum(all_sigma_sq[,1])/(1:nrow(all_sigma_sq)),
+sigma_sq_plot_dataframe = data.frame(1:nIter, all_sigma_sq,
+                                     cumsum(all_sigma_sq[,1])/
+                                       (1:nrow(all_sigma_sq)),
                                cumsum(all_sigma_sq[,2])/(1:nrow(all_sigma_sq)))
 colnames(sigma_sq_plot_dataframe) = c("index", "sigma_sq_1", "sigma_sq_2",
-                                "sigma_sq_1_trailing_mean", "sigma_sq_2_trailing_mean")
+                                "sigma_sq_1_trailing_mean",
+                                "sigma_sq_2_trailing_mean")
 
 ggplot(sigma_sq_plot_dataframe) +
   geom_line(aes(x = index, y = sigma_sq_1), color = "#C70039") +
@@ -372,12 +392,13 @@ ggplot(sigma_sq_plot_dataframe) +
 
 ## Graphical Comparison
 
-The following plot shows the densities of teh data and the two models.
+The following plot shows the densities of the data and the two models.
 
 ```{r, echo = FALSE}
 
 x = xGrid
-density_data = density(rainfall_data$V1, from = x[1], to = x[length(x)], n = length(x))$y
+density_data = density(rainfall_data$V1, from = x[1], to = x[length(x)],
+                       n = length(x))$y
 density_normal = dnorm(x, mean = mean(res$mu), sd = sqrt(mean(res$sigma_sq)))
 density_mixture = mixDensMean
 
@@ -396,7 +417,6 @@ ggplot(density_comparison_df) +
   theme_minimal()
 
 ```
-
 
 # Metropolis Random Walk for Poisson Regression
 
@@ -447,7 +467,7 @@ kable(head(ebay_data))
 
 ```
 
-Now we fit the glm model:
+Now we fit the glm model and look at the obtained coefficients.
 
 ```{r}
 
@@ -457,9 +477,34 @@ summary(glm_model)
 glm_model$coefficients
 ```
 
-**ToDo:** Comment about the significance of the coefficients/covariates.
+The covariates *Intercept*, *VerifyID*, *Sealed*, *LogBook* and *MinBidShare* are significant.
 
 ## Bayesian Analysis of the Poisson Regression
+
+The prior is given as:
+
+$$P(\theta) = \mathcal{N}(\mathbf{0}, 100 \cdot (X^TX)^{-1})$$
+
+The likelihood is derived by taking the product of the probabilities of the observations. For calculating the probability for each observation the probability mass function is used, which is in it's general form:
+
+$$p(y|x;\theta) = \frac{\lambda^y}{y!}e^{-\lambda} = \frac{e^{y\theta}e^{-e^{\theta x}}}{y!}$$
+Using this, the likelihood is given by:
+
+$$P(X,y|\theta) = L(\theta|X, y) = \prod_{i=1}^{N} \frac{e^{y_i\theta}e^{-e^{\theta x_i}}}{y_i!}$$
+
+Taking the log gives:
+
+$$\mathcal{L}(\theta|X, y) = \sum_{i=1}^{N} y_i \theta -e^{\theta x_i} - ln(y_i!)$$
+
+As we don't care about factors not depending on $\theta$ we can rewrite as:
+
+$$\mathcal{L}(\theta|X, y) \propto \sum_{i=1}^{N} y_i \theta -e^{\theta x_i}$$
+
+And finally we vectorize the left part (dot product):
+
+$$\mathcal{L}(\theta|X, y) \propto y \cdot \theta - \sum_{i=1}^ {N}e^{\theta x_i}$$
+
+The posterior log-likelihood also contains the log normal part, which can be found in the code.
 
 ```{r}
 
@@ -513,23 +558,33 @@ names(posterior_sd) = feature_names
 
 ```
 
+The posterior mode is given as:
+
 ```{r}
 posterior_mode
 ```
 
+The posterior covariance is given as:
 
 ```{r}
 posterior_covariance
 ```
 
+The posterior standard deviation is given as:
+
 ```{r}
 posterior_sd
 ```
 
-
 ## Simulate from the Actual Posterior Using the Metropolis Algorithm
 
+First we define the function that is performing the Metropolis Random Walk. It takes the posterior function as an argument, the arguments for this function are taken with the `...`. `n` specifies the number of samples to be obtained. $\theta_0$ are the start values for the parameters. We used 0 for all of them but they could also be set to our prior believes as mentioned during the lecture. As we want to see the burn-in period, we went for the 0's.
+
 ```{r}
+
+################################################################################
+# Exercise 2.c)
+################################################################################
 
 RMWSampler = function(dposterior, n = 1, theta_0, c, Sigma, ...) {
   
@@ -546,13 +601,7 @@ RMWSampler = function(dposterior, n = 1, theta_0, c, Sigma, ...) {
     # Get proposal
     theta_star = rmvnorm(n = 1, mean = theta_1, sigma = Sigma)
     
-    # Calculate the acceptance probability alpha
-    #if (dposterior(theta_1, ...) <= 0) {
-    #  alpha = 0
-    #}
-    #else {
-      #alpha = min(1, dposterior(theta_star, ...) / dposterior(theta_1, ...))
-    #}
+    # According to the help file we go for this version of alpha
     alpha = min(1, exp(dposterior(theta_star, ...) - dposterior(theta_1, ...)))
     
     # Decide if to accept or reject the proposal
@@ -569,6 +618,7 @@ RMWSampler = function(dposterior, n = 1, theta_0, c, Sigma, ...) {
       theta = theta_1
     }
     
+    # To keep track of the rejection rate
     i = i + 1
   }
   
@@ -576,6 +626,12 @@ RMWSampler = function(dposterior, n = 1, theta_0, c, Sigma, ...) {
 }
 
 ```
+
+The proportional log posterior is given as prior plus likelihood, as previously defined:
+
+$$log(P(\beta|X,y)) \propto log(\mathcal{N}(\mathbf{0}, 100 \cdot (X^TX)^{-1})) + y \cdot \theta - \sum_{i=1}^ {N}e^{\theta x_i}$$
+
+$\theta$ is the first argument to our function. Also needed are the prior parameters and the data for the likelihood.
 
 ```{r}
 
@@ -592,12 +648,13 @@ dposterior = function(theta, mu_prior, sigma_prior, X, Y) {
 
 ```
 
+It's time to call the function. We set $c = 0.5$ to have a usable tradeoff between a small step size and the rejection rate to converge not to slowly and to cover the posterior density as good as possible. We take $1000$ drawns and start with 0 for $\theta$ as mentioned.
 
 ```{r}
 
 # Our parameters for the function
-c = 1
-n = 1000
+c = 0.5
+n = 2000
 theta = t(as.matrix(rep(0, 9)))
 
 # Call the Random Metropolis Walk
@@ -612,12 +669,15 @@ ms_res = RMWSampler(dposterior = dposterior,
                     X = X,
                     Y = Y)
 
-ms_res$samples
+tail(ms_res$samples)
 ```
 
-The rejection rate during the sampling was `r ms_res$rejection_rate`
+The rejection rate during the sampling was `r ms_res$rejection_rate`.
 
-```{r}
+The following plots show the traces of all $\theta$.
+
+```{r, echo = FALSE}
+
 plotdf = data.frame(1:n, ms_res$samples)
 colnames(plotdf)[1] = "index"
 
@@ -679,16 +739,7 @@ grid.arrange(df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, nrow = 3)
 
 ```
 
-
-```{r}
-
-values = apply(as.matrix(ms_res$samples), 1, FUN = function(x, cmu, csigma, cX, cY) {
-  x = t(x)
-  return(dposterior(x, cmu, csigma, cX, cY))
-}, cmu=mu_prior, csigma = covariate_prior, cX = X, cY = Y)
-```
-
-
+As we can see we obtained convergence for all of the parameters and their mean, after convergence, fits with the results obtained in a) and b).
 
 # Source Code
 
