@@ -3,21 +3,23 @@ title: "Bayesian Learning - Lab 03"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(knitr)
 library(ggplot2)
+library(mvtnorm)
+library(gridExtra)
 ```
 
 # Normal Model, Mixture of Normal Model with Semi-Conjugate Prior
@@ -179,7 +181,7 @@ ggplot(plotdf) +
 # Exercise 1.b)
 ################################################################################
 
-# This is the script provied in 'NormalMixtureGibbs.R' with minor ajustments.
+# This is the script provided in 'NormalMixtureGibbs.R' with minor ajustments.
 
 # Estimating a simple mixture of normals
 # Author: Mattias Villani, IDA, Linkoping University. http://mattiasvillani.com
@@ -488,8 +490,8 @@ beta = rmvnorm(1, mu_prior, covariate_prior)
 
 # https://nptel.ac.in/courses/111104074/Module14/Lecture41.pdf
 log_likelihood = function(beta, X ,Y) {
-  lambda = t(exp(X %*% beta)) # log-link function
-  llik = t(Y) %*% log(t(lambda)) - sum(lambda) - sum(log(factorial(Y)))
+  lambda = t(X %*% beta) # log-link function
+  llik = t(Y) %*% t(lambda) - sum(exp(lambda))# - sum(log(factorial(Y)))
   return(llik)
 }
 
@@ -511,7 +513,182 @@ names(posterior_sd) = feature_names
 
 ```
 
+```{r}
+posterior_mode
+```
+
+
+```{r}
+posterior_covariance
+```
+
+```{r}
+posterior_sd
+```
+
+
 ## Simulate from the Actual Posterior Using the Metropolis Algorithm
+
+```{r}
+
+RMWSampler = function(dposterior, n = 1, theta_0, c, Sigma, ...) {
+  
+  # Variables
+  samples = data.frame()
+  Sigma = c * Sigma
+  i = 0
+  
+  # Current and next step for random walk
+  theta_1 = theta_0
+  theta = theta_0
+  
+  while (nrow(samples) < n) {
+    # Get proposal
+    theta_star = rmvnorm(n = 1, mean = theta_1, sigma = Sigma)
+    
+    # Calculate the acceptance probability alpha
+    #if (dposterior(theta_1, ...) <= 0) {
+    #  alpha = 0
+    #}
+    #else {
+      #alpha = min(1, dposterior(theta_star, ...) / dposterior(theta_1, ...))
+    #}
+    alpha = min(1, exp(dposterior(theta_star, ...) - dposterior(theta_1, ...)))
+    
+    # Decide if to accept or reject the proposal
+    u = runif(n = 1, min = 0, max = 1)
+    
+    if (u <= alpha) {
+      # Accept
+      theta_1 = theta
+      theta = theta_star
+      samples = rbind(samples, theta_star)
+    }
+    else {
+      # Reject
+      theta = theta_1
+    }
+    
+    i = i + 1
+  }
+  
+  return(list(samples = samples, rejection_rate = (1 - (n / i))))
+}
+
+```
+
+```{r}
+
+dposterior = function(theta, mu_prior, sigma_prior, X, Y) {
+  
+  # Prior
+  prior = dmvnorm(theta, mu_prior, sigma_prior, log = TRUE)
+  
+  # Likelihood
+  likelihood = log_likelihood(t(theta), X, Y)
+
+  return(prior + likelihood)
+}
+
+```
+
+
+```{r}
+
+# Our parameters for the function
+c = 1
+n = 1000
+theta = t(as.matrix(rep(0, 9)))
+
+# Call the Random Metropolis Walk
+ms_res = RMWSampler(dposterior = dposterior,
+                    n = n,
+                    theta_0 = theta,
+                    c = c,
+                    Sigma = posterior_covariance,
+                    # Now ...
+                    mu_prior = posterior_mode,
+                    sigma_prior = covariate_prior,
+                    X = X,
+                    Y = Y)
+
+ms_res$samples
+```
+
+The rejection rate during the sampling was `r ms_res$rejection_rate`
+
+```{r}
+plotdf = data.frame(1:n, ms_res$samples)
+colnames(plotdf)[1] = "index"
+
+df_1 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V1), color = "#C70039") +
+  labs(title = "Traceplot for V1", y = "theta_1",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_2 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V2), color = "#C70039") +
+  labs(title = "Traceplot for V2", y = "theta_2",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_3 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V3), color = "#C70039") +
+  labs(title = "Traceplot for V3", y = "theta_3",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_4 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V4), color = "#C70039") +
+  labs(title = "Traceplot for V4", y = "theta_4",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_5 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V5), color = "#C70039") +
+  labs(title = "Traceplot for V5", y = "theta_5",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_6 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V6), color = "#C70039") +
+  labs(title = "Traceplot for V6", y = "theta_6",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_7 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V7), color = "#C70039") +
+  labs(title = "Traceplot for V7", y = "theta_7",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_8 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V8), color = "#C70039") +
+  labs(title = "Traceplot for V8", y = "theta_8",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+df_9 = ggplot(plotdf) +
+  geom_line(aes(x = index, y = V9), color = "#C70039") +
+  labs(title = "Traceplot for V9", y = "theta_9",
+  x = "Iteration", color = "Legend") +
+  theme_minimal()
+
+grid.arrange(df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, nrow = 3)
+
+```
+
+
+```{r}
+
+values = apply(as.matrix(ms_res$samples), 1, FUN = function(x, cmu, csigma, cX, cY) {
+  x = t(x)
+  return(dposterior(x, cmu, csigma, cX, cY))
+}, cmu=mu_prior, csigma = covariate_prior, cX = X, cY = Y)
+```
+
+
 
 # Source Code
 
