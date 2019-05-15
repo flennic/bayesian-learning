@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 03"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +20,7 @@ library(knitr)
 library(ggplot2)
 library(mvtnorm)
 library(gridExtra)
+library(coda)
 ```
 
 # Normal Model, Mixture of Normal Model with Semi-Conjugate Prior
@@ -740,6 +741,29 @@ grid.arrange(df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9, nrow = 3)
 ```
 
 As we can see we obtained convergence for all of the parameters and their mean, after convergence, fits with the results obtained in a) and b).
+
+Let's also have a look at the Inefficiency Factor and the Effective Sample Size.
+
+```{r}
+
+effective_sample_size = effectiveSize(ms_res$samples)
+names(effective_sample_size) = feature_names
+
+effective_sample_size
+
+```
+
+The Inefficiency Factor is calculated below.
+
+```{r}
+
+inefficiency_factor = n / effective_sample_size
+
+inefficiency_factor
+
+```
+
+
 
 # Source Code
 
