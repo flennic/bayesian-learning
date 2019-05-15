@@ -670,6 +670,8 @@ ms_res = RMWSampler(dposterior = dposterior,
                     X = X,
                     Y = Y)
 
+names(ms_res$samples) = feature_names
+
 tail(ms_res$samples)
 ```
 
@@ -683,56 +685,56 @@ plotdf = data.frame(1:n, ms_res$samples)
 colnames(plotdf)[1] = "index"
 
 df_1 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V1), color = "#C70039") +
-  labs(title = "Traceplot for V1", y = "theta_1",
+  geom_line(aes(x = index, y = Const), color = "#C70039") +
+  labs(title = "Traceplot for Const", y = "theta_1",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_2 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V2), color = "#C70039") +
-  labs(title = "Traceplot for V2", y = "theta_2",
+  geom_line(aes(x = index, y = PowerSeller), color = "#C70039") +
+  labs(title = "Traceplot for PowerSeller", y = "theta_2",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_3 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V3), color = "#C70039") +
-  labs(title = "Traceplot for V3", y = "theta_3",
+  geom_line(aes(x = index, y = VerifyID), color = "#C70039") +
+  labs(title = "Traceplot for VerifyID", y = "theta_3",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_4 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V4), color = "#C70039") +
-  labs(title = "Traceplot for V4", y = "theta_4",
+  geom_line(aes(x = index, y = Sealed), color = "#C70039") +
+  labs(title = "Traceplot for Sealed", y = "theta_4",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_5 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V5), color = "#C70039") +
-  labs(title = "Traceplot for V5", y = "theta_5",
+  geom_line(aes(x = index, y = Minblem), color = "#C70039") +
+  labs(title = "Traceplot for Minblem", y = "theta_5",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_6 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V6), color = "#C70039") +
-  labs(title = "Traceplot for V6", y = "theta_6",
+  geom_line(aes(x = index, y = MajBlem), color = "#C70039") +
+  labs(title = "Traceplot for MajBlem", y = "theta_6",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_7 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V7), color = "#C70039") +
-  labs(title = "Traceplot for V7", y = "theta_7",
+  geom_line(aes(x = index, y = LargNeg), color = "#C70039") +
+  labs(title = "Traceplot for LargNeg", y = "theta_7",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_8 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V8), color = "#C70039") +
-  labs(title = "Traceplot for V8", y = "theta_8",
+  geom_line(aes(x = index, y = LogBook), color = "#C70039") +
+  labs(title = "Traceplot for LogBook", y = "theta_8",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
 df_9 = ggplot(plotdf) +
-  geom_line(aes(x = index, y = V9), color = "#C70039") +
-  labs(title = "Traceplot for V9", y = "theta_9",
+  geom_line(aes(x = index, y = MinBidShare), color = "#C70039") +
+  labs(title = "Traceplot for MinBidShare", y = "theta_9",
   x = "Iteration", color = "Legend") +
   theme_minimal()
 
