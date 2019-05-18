@@ -18,6 +18,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 library(knitr)
 library(ggplot2)
+library(gridExtra)
 ```
 
 # Time series models in Stan
@@ -25,8 +26,58 @@ library(ggplot2)
 **Exercise:** 
 
 (a) Write a function in R that simulates data from the AR(1)-process
-$$ x_t = \mu + \phi(x_{t-1} - \mu) + \epsilon_t,  \epsilon_t \stackrel{iid}{\sim} N(0, \sigma^2)      $$
+$$ x_t = \mu + \phi(x_{t-1} - \mu) + \epsilon_t,  \epsilon_t \sim N(0, \sigma^2)      $$
 for given values of $\mu$, $\phi$ and $\sigma^2$. Start the process at $x_1$ = $\mu$ and then simulate values for $x_t$ for t = 2, 3 . . . , T and return the vector $x_{1:T}$ containing all time points.  Use $\mu$ = 10, $\sigma^2$ = 2 and T = 200 and look at some different realizations (simulations) of $x_{1:T}$ for values of $\phi$ between -1 and 1 (this is the interval of $\phi$ where the AR(1)-process is stable). Include a plot of at least one realization in the report. What effect does the value of $\phi$ have on $x_{1:T}$ ?
+
+```{r}
+
+ar_process = function(mu, tau, phi, sigma_sq) {
+  
+  # storing the values
+  X = rep(NaN, tau)
+  
+  X[1] = mu
+  
+  for (i in 1:(tau - 1)) {
+    X[i+1] = mu + phi *(X[i] - mu) + rnorm(n = 1, mean = 0, sd = sqrt(sigma_sq))
+  }
+  
+  return(X)
+}
+
+```
+
+```{r}
+
+simulate_ar_process = function(mu, tau, phi, sigma_sq) {
+  
+  res_1 = ar_process(mu, tau, phi, sigma_sq)
+  res_2 = ar_process(mu, tau, phi, sigma_sq)
+  
+  df = data.frame(x = 1:tau,
+                  y1 = res_1,
+                  y2 = res_2)
+  
+  p = ggplot(df) +
+    geom_line(aes(x = x, y = y1), color = "#C70039") +
+    geom_line(aes(x = x, y = y2), color = "#FFC300") +
+    labs(title = paste("mu =", mu, "| T =", tau, "\nphi =", phi, " | sigma_sq = ", sigma_sq) , y = "mu",
+    x = "Iteration", color = "Legend") +
+    theme_minimal()
+  
+  return(p)
+}
+
+p1 = simulate_ar_process(mu = 10, tau = 200, phi = -0.5, sigma_sq = 2)
+p2 = simulate_ar_process(mu = 10, tau = 200, phi = 0.75, sigma_sq = 2)
+p3 = simulate_ar_process(mu = 10, tau = 200, phi = 0.9, sigma_sq = 2)
+p4 = simulate_ar_process(mu = 10, tau = 200, phi = 1, sigma_sq = 2)
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+
+```
+
+**Answer:** Phi = 1 is random walk, if abs(phi) < 1 it's wide-sense stationary and if abs(phi) > 1 it's not stationary.
 
 (b) Use your function from a) to simulate two AR(1)-processes, $x_{1:T}$ with $\phi$ = 0.3 and $y_{1:T}$ with $\phi$ = 0.95. Now, treat the values of $\mu$, $\phi$ and $\sigma^2$ as unknown and estimate them using MCMC. Implement Stan-code that samples from the posterior of the three parameters, using suitable non-informative priors of your choice. [Hint: Look at the time-series models examples in the Stan reference manual, and note the different parameterization used here.]
 
