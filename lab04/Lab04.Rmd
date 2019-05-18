@@ -165,7 +165,14 @@ plotdf = data.frame(muX = posteriorX$mu,
 ggplot(plotdf)+
   geom_point(aes(x = muX, y = phiX), color = "black",
              fill = "#dedede", shape = 21) +
-  labs(title = "Joint Posterior of mu and phi",
+  labs(title = "Joint Posterior of mu and phi for proecess 1",
+       y = "phi", x = "mu", color = "Legend") +
+  theme_minimal()
+
+ggplot(plotdf)+
+  geom_point(aes(x = muY, y = phiY), color = "black",
+             fill = "#dedede", shape = 21) +
+  labs(title = "Joint Posterior of mu and phi for process 2",
        y = "phi", x = "mu", color = "Legend") +
   theme_minimal()
 
@@ -176,6 +183,47 @@ ggplot(plotdf)+
 $$ c_t | x_t  \sim Poisson(exp(x_t)) $$
 
 where $x_t$ is an AR(1)-process as in a). Implement and estimate the model in Stan, using suitable priors of your choice. Produce a plot that contains both the data and the posterior mean and 95% credible intervals for the latent intensity $\theta_t = exp (x_t)$ over time. [Hint: Should $x_t$ be seen as data or parameters?]
+
+```{r}
+
+campy_data = read.table("data/campy.dat", header=TRUE)
+
+```
+
+
+```{r}
+
+stanModel = '
+
+data {
+  int<lower=0> N;
+  int<lower=0> y[N];
+}
+transformed data {
+  real x[N];
+  x[1] = normal_rng(0, 1);
+}
+parameters {
+  real mu;
+  real phi;
+  real sigma_sq;
+}
+model {
+  for (n in 2:N) {
+   x[n] ~ normal(mu + phi * x[n-1], sqrt(sigma_sq));
+   y[n] ~ poisson(exp(x[n]));
+  }
+}
+
+'
+
+stanModelPoisson = stan(model_code = stanModel,
+                  model_name = "AR_Poisson",
+                  data = list(N = length(campy_data$c), y = campy_data$c),
+                  warmup = 1000,
+                  iter = 2000)
+
+```
 
 (d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
 
