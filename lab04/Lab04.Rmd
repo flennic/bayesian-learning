@@ -19,6 +19,14 @@ knitr::opts_chunk$set(echo = TRUE)
 library(knitr)
 library(ggplot2)
 library(gridExtra)
+library(coda)
+library(rstan)
+
+# RStan Setup
+## Use multi-cores
+options(mc.cores = parallel::detectCores())
+## Reuse compiled binary
+rstan_options(auto_write = TRUE)
 ```
 
 # Time series models in Stan
@@ -84,6 +92,86 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
     (i) Report the posterior mean, 95% credible intervals and the number of effective posterior samples for the three inferred parameters for each of the simulated AR(1)-process. Are you able to estimate the true values?
     (ii) For each of the two data sets, evaluate the convergence of the samplers and plot the joint posterior of $\mu$ and $\phi$. Comments?
     
+```{r, include = FALSE}
+
+X = ar_process(mu = 10, tau = 200, phi = 0.3, sigma_sq = 2)
+Y = ar_process(mu = 10, tau = 200, phi = 0.95, sigma_sq = 2)
+
+stanModel = '
+
+data {
+  int<lower=0> N;
+  vector[N] y;
+}
+parameters {
+  real mu;
+  real phi;
+  real<lower=0> sigma_sq;
+}
+model {
+  y[2:N] ~ normal(mu + phi * y[1:(N - 1)], sqrt(sigma_sq));
+}
+
+'
+
+stanModelX = stan(model_code = stanModel,
+                  model_name = "AR_X",
+                  data = list(N = length(X), y = X),
+                  warmup = 1000,
+                  iter = 2000)
+
+stanModelY = stan(model_code = stanModel,
+                  model_name = "AR_Y",
+                  data = list(N = length(Y), y = Y),
+                  warmup = 1000,
+                  iter = 2000)
+
+posteriorX = extract(stanModelX)
+posterior_paramsX = As.mcmc.list(stanModelX)
+
+posteriorY = extract(stanModelY)
+posterior_paramsY = As.mcmc.list(stanModelY)
+
+```
+
+```{r}
+
+stanModelX
+summary(stanModelX, pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
+
+plot(posterior_paramsX)
+pairs(stanModelX)
+
+```
+
+
+```{r}
+
+stanModelY
+summary(stanModelY, pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
+
+plot(posterior_paramsY)
+pairs(stanModelY)
+
+```
+
+```{r}
+
+plotdf = data.frame(muX = posteriorX$mu,
+                    phiX = posteriorX$phi,
+                    muY = posteriorY$mu,
+                    phiY = posteriorY$phi)
+
+ggplot(plotdf)+
+  geom_point(aes(x = muX, y = phiX), color = "black",
+             fill = "#dedede", shape = 21) +
+  labs(title = "Joint Posterior of mu and phi",
+       y = "phi", x = "mu", color = "Legend") +
+  theme_minimal()
+
+```
+
+
 (c) The data `campy.dat` contain the number of cases of campylobacter infections in the north of the province Quebec (Canada) in four week intervals from January 1990 to the end of October 2000. It has 13 observations per year and 140 observations in total. Assume that the number of infections $c_t$ at each time point follows an independent Poisson distribution when conditioned on a latent AR(1)-process $x_t$, that is
 $$ c_t | x_t  \sim Poisson(exp(x_t)) $$
 
