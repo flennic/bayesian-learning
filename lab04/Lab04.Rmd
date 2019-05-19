@@ -68,7 +68,7 @@ simulate_ar_process = function(mu, tau, phi, sigma_sq) {
   
   p = ggplot(df) +
     geom_line(aes(x = x, y = y1), color = "#C70039") +
-    geom_line(aes(x = x, y = y2), color = "#FFC300") +
+    geom_line(aes(x = x, y = y2), color = "#2E4053") +
     labs(title = paste("mu =", mu, "| T =", tau, "\nphi =", phi, " | sigma_sq = ", sigma_sq) , y = "mu",
     x = "Iteration", color = "Legend") +
     theme_minimal()
@@ -199,20 +199,23 @@ data {
   int<lower=0> N;
   int<lower=0> y[N];
 }
-transformed data {
-  real x[N];
-  x[1] = normal_rng(0, 1);
-}
 parameters {
   real mu;
   real phi;
-  real sigma_sq;
+  real<lower=0> sigma_sq;
+  vector[N] x;
 }
 model {
-  for (n in 2:N) {
-   x[n] ~ normal(mu + phi * x[n-1], sqrt(sigma_sq));
-   y[n] ~ poisson(exp(x[n]));
-  }
+
+  // Priors
+  mu ~ normal(mu, 1);
+  phi ~ normal(0, 1);
+  sigma_sq ~ normal(0, 1);
+  
+  // Model
+  x[1] ~ normal(mu, sigma_sq);
+  x[2:N] ~ normal(mu + phi * x[1:(N-1)], sqrt(sigma_sq));
+  y[1:N] ~ poisson(exp(x[1:N]));
 }
 
 '
@@ -223,7 +226,25 @@ stanModelPoisson = stan(model_code = stanModel,
                   warmup = 1000,
                   iter = 2000)
 
+posteriorPoisson = extract(stanModelPoisson)
+
 ```
+
+```{r}
+
+ df = data.frame(x = 1:length(campy_data$c),
+                  real = campy_data$c,
+                  simulated = exp(colMeans(posteriorPoisson$x)))
+  
+  p = ggplot(df) +
+    geom_line(aes(x = x, y = real), color = "#C70039") +
+    geom_line(aes(x = x, y = simulated), color = "#2E4053") +
+    labs(title = "Simulated and Real Process" , y = "mu",
+    x = "Iteration", color = "Legend") +
+    theme_minimal()
+
+```
+
 
 (d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
 
