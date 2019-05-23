@@ -3,15 +3,15 @@ title: "Bayesian Learning - Lab 04"
 author: "Lakshidaa Saigiridharan (laksa656) and Maximilian Pfundstein (maxpf364)"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
   html_document:
     df_print: paged
     toc: true
     toc_float: false
     number_sections: false
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -148,14 +148,14 @@ pairs(stanModelX)
 ```{r}
 
 stanModelY
-summary(stanModelY, pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
+  summary(stanModelY, pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
 
 plot(posterior_paramsY)
 pairs(stanModelY)
 
 ```
 
-```{r}
+```{r, echo=FALSE}
 
 plotdf = data.frame(muX = posteriorX$mu,
                     phiX = posteriorX$phi,
@@ -165,7 +165,7 @@ plotdf = data.frame(muX = posteriorX$mu,
 ggplot(plotdf)+
   geom_point(aes(x = muX, y = phiX), color = "black",
              fill = "#dedede", shape = 21) +
-  labs(title = "Joint Posterior of mu and phi for proecess 1",
+  labs(title = "Joint Posterior of mu and phi for process 1",
        y = "phi", x = "mu", color = "Legend") +
   theme_minimal()
 
@@ -180,9 +180,13 @@ ggplot(plotdf)+
 
 
 (c) The data `campy.dat` contain the number of cases of campylobacter infections in the north of the province Quebec (Canada) in four week intervals from January 1990 to the end of October 2000. It has 13 observations per year and 140 observations in total. Assume that the number of infections $c_t$ at each time point follows an independent Poisson distribution when conditioned on a latent AR(1)-process $x_t$, that is
-$$ c_t | x_t  \sim Poisson(exp(x_t)) $$
+
+$$c_t | x_t  \sim Poisson(exp(x_t))$$
+
 
 where $x_t$ is an AR(1)-process as in a). Implement and estimate the model in Stan, using suitable priors of your choice. Produce a plot that contains both the data and the posterior mean and 95% credible intervals for the latent intensity $\theta_t = exp (x_t)$ over time. [Hint: Should $x_t$ be seen as data or parameters?]
+
+First we import the data.
 
 ```{r}
 
@@ -190,6 +194,7 @@ campy_data = read.table("data/campy.dat", header=TRUE)
 
 ```
 
+We define the following Stan model. Note that we basically have the same paramters as before. One new parameter is x, which represents the AR(1) process and it dependends on the previous parameters. We define the first x as a normal around $\mu$ with the prior for $\sigma$ as the variance. It will therefore heavily depend on the given data but as that's the best we know about the underlying process, we will go for it. For $\sigma^2$ we chose a chi squared prior as the variance has to be positve and a normal would not suit this. As we assume to not know that much about the prior we went for 1 degree of freedom and $\nu = 10$.
 
 ```{r}
 
@@ -208,9 +213,9 @@ parameters {
 model {
 
   // Priors
-  mu ~ normal(mu, 1);
-  phi ~ normal(0, 1);
-  sigma_sq ~ normal(0, 1);
+  mu ~ normal(5, 1);
+  phi ~ normal(0, 10);
+  sigma_sq ~ scaled_inv_chi_square(1, 10);
   
   // Model
   x[1] ~ normal(mu, sigma_sq);
@@ -230,26 +235,105 @@ posteriorPoisson = extract(stanModelPoisson)
 
 ```
 
+We will plot the mean of our samples. As they respresent $x_t$ which is equal to $\lambda$ which is in turn the mean of the Possion distribution. We can therefore directly take it as our mean and plot it. We use the `quantile()` function for obtaining the credible interval.
+
 ```{r}
 
- df = data.frame(x = 1:length(campy_data$c),
+ci = apply(exp(posteriorPoisson$x), 2, quantile, probs = c(0.025, 0.975))
+
+df = data.frame(x = 1:length(campy_data$c),
                   real = campy_data$c,
-                  simulated = exp(colMeans(posteriorPoisson$x)))
+                  simulated = exp(colMeans(posteriorPoisson$x)),
+                  lower_ci = ci[1,],
+                  upper_ci = ci[2,])
+
+```
+
+The plot looks as follows. The darker area indicates the 95% credible interval.
+
+```{r, echo=FALSE}
   
-  p = ggplot(df) +
-    geom_line(aes(x = x, y = real), color = "#C70039") +
-    geom_line(aes(x = x, y = simulated), color = "#2E4053") +
+ggplot(df) +
+    geom_line(aes(x = x, y = real, color = "real")) +
+    geom_line(aes(x = x, y = simulated, color = "simulated")) +
+    geom_ribbon(aes(x = x, ymin = lower_ci, ymax = upper_ci), fill = "black",
+              alpha = 0.25) +
     labs(title = "Simulated and Real Process" , y = "mu",
     x = "Iteration", color = "Legend") +
+    scale_color_manual(values = c("#C70039", "#2E4053")) +
     theme_minimal()
 
 ```
 
-
 (d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
 
+We choose a chi squared with 300 degress of freedom  and a very small $\nu$ to make the prior for $\sigma^2$ informative. We observe that the prediction curve is more flattened out and therefore generalizes better if we'd use it for making future predictions.
+
+```{r}
+
+stanModel = '
+
+data {
+  int<lower=0> N;
+  int<lower=0> y[N];
+}
+parameters {
+  real mu;
+  real phi;
+  real<lower=0> sigma_sq;
+  vector[N] x;
+}
+model {
+
+  // Priors
+  mu ~ normal(5, 1);
+  phi ~ normal(0, 10);
+  sigma_sq ~ scaled_inv_chi_square(300, 0.1);
+  
+  // Model
+  x[1] ~ normal(mu, sigma_sq);
+  x[2:N] ~ normal(mu + phi * x[1:(N-1)], sqrt(sigma_sq));
+  y[1:N] ~ poisson(exp(x[1:N]));
+}
+
+'
+
+stanModelPoisson = stan(model_code = stanModel,
+                  model_name = "AR_Poisson",
+                  data = list(N = length(campy_data$c), y = campy_data$c),
+                  warmup = 1000,
+                  iter = 2000)
+
+posteriorPoisson = extract(stanModelPoisson)
+
+```
 
 
+```{r}
+
+ci = apply(exp(posteriorPoisson$x), 2, quantile, probs = c(0.025, 0.975))
+
+df = data.frame(x = 1:length(campy_data$c),
+                  real = campy_data$c,
+                  simulated = exp(colMeans(posteriorPoisson$x)),
+                  lower_ci = ci[1,],
+                  upper_ci = ci[2,])
+
+```
+
+```{r, echo=FALSE}
+
+ggplot(df) +
+    geom_line(aes(x = x, y = real, color = "real")) +
+    geom_line(aes(x = x, y = simulated, color = "simulated")) +
+    geom_ribbon(aes(x = x, ymin = lower_ci, ymax = upper_ci), fill = "black",
+              alpha = 0.25) +
+    labs(title = "Simulated and Real Process" , y = "mu",
+    x = "Iteration", color = "Legend") +
+    scale_color_manual(values = c("#C70039", "#2E4053")) +
+    theme_minimal()
+
+```
 
 # Source Code
 
