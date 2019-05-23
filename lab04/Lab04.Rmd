@@ -22,6 +22,8 @@ library(gridExtra)
 library(coda)
 library(rstan)
 
+options(max.print=50)
+
 # RStan Setup
 ## Use multi-cores
 options(mc.cores = parallel::detectCores())
@@ -35,9 +37,30 @@ rstan_options(auto_write = TRUE)
 
 (a) Write a function in R that simulates data from the AR(1)-process
 $$ x_t = \mu + \phi(x_{t-1} - \mu) + \epsilon_t,  \epsilon_t \sim N(0, \sigma^2)      $$
-for given values of $\mu$, $\phi$ and $\sigma^2$. Start the process at $x_1$ = $\mu$ and then simulate values for $x_t$ for t = 2, 3 . . . , T and return the vector $x_{1:T}$ containing all time points.  Use $\mu$ = 10, $\sigma^2$ = 2 and T = 200 and look at some different realizations (simulations) of $x_{1:T}$ for values of $\phi$ between -1 and 1 (this is the interval of $\phi$ where the AR(1)-process is stable). Include a plot of at least one realization in the report. What effect does the value of $\phi$ have on $x_{1:T}$ ?
+for given values of $\mu$, $\phi$ and $\sigma^2$. Start the process at $x_1$ = $\mu$ and then simulate values for $x_t$ for t = 2, 3 . . . , T and return the vector $x_{1:T}$ containing all time points. Use $\mu$ = 10, $\sigma^2$ = 2 and T = 200 and look at some different realizations (simulations) of $x_{1:T}$ for values of $\phi$ between -1 and 1 (this is the interval of $\phi$ where the AR(1)-process is stable). Include a plot of at least one realization in the report. What effect does the value of $\phi$ have on $x_{1:T}$?
+
+(b) Use your function from a) to simulate two AR(1)-processes, $x_{1:T}$ with $\phi$ = 0.3 and $y_{1:T}$ with $\phi$ = 0.95. Now, treat the values of $\mu$, $\phi$ and $\sigma^2$ as unknown and estimate them using MCMC. Implement Stan-code that samples from the posterior of the three parameters, using suitable non-informative priors of your choice. [Hint: Look at the time-series models examples in the Stan reference manual, and note the different parameterization used here.]
+
+    (i) Report the posterior mean, 95% credible intervals and the number of effective posterior samples for the three inferred parameters for each of the simulated AR(1)-process. Are you able to estimate the true values?
+    (ii) For each of the two data sets, evaluate the convergence of the samplers and plot the joint posterior of $\mu$ and $\phi$. Comments?
+    
+(c) The data `campy.dat` contain the number of cases of campylobacter infections in the north of the province Quebec (Canada) in four week intervals from January 1990 to the end of October 2000. It has 13 observations per year and 140 observations in total. Assume that the number of infections $c_t$ at each time point follows an independent Poisson distribution when conditioned on a latent AR(1)-process $x_t$, that is
+
+$$c_t | x_t  \sim Poisson(exp(x_t))$$
+
+where $x_t$ is an AR(1)-process as in a). Implement and estimate the model in Stan, using suitable priors of your choice. Produce a plot that contains both the data and the posterior mean and 95% credible intervals for the latent intensity $\theta_t = exp (x_t)$ over time. [Hint: Should $x_t$ be seen as data or parameters?]
+
+(d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
+
+## Samples from an AR(1)-Process
+
+First we define the function for simulating from the AR(1)-process.
 
 ```{r}
+
+################################################################################
+# Exercise 1.a)
+################################################################################
 
 ar_process = function(mu, tau, phi, sigma_sq) {
   
@@ -55,6 +78,8 @@ ar_process = function(mu, tau, phi, sigma_sq) {
 
 ```
 
+The following is a helper function to take to samples from the same parameters and to return a plot of those.
+
 ```{r}
 
 simulate_ar_process = function(mu, tau, phi, sigma_sq) {
@@ -69,7 +94,8 @@ simulate_ar_process = function(mu, tau, phi, sigma_sq) {
   p = ggplot(df) +
     geom_line(aes(x = x, y = y1), color = "#C70039") +
     geom_line(aes(x = x, y = y2), color = "#2E4053") +
-    labs(title = paste("mu =", mu, "| T =", tau, "\nphi =", phi, " | sigma_sq = ", sigma_sq) , y = "mu",
+    labs(title = paste("mu =", mu, "| T =", tau, "\nphi =",
+                       phi, " | sigma_sq = ", sigma_sq) , y = "mu",
     x = "Iteration", color = "Legend") +
     theme_minimal()
   
@@ -85,20 +111,22 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 
 ```
 
-**Answer:** Phi = 1 is random walk, if abs(phi) < 1 it's wide-sense stationary and if abs(phi) > 1 it's not stationary.
+The plots shows two simulations from each parameter set. If $\phi = 1$, we basically simulate a random walk, if $|\phi| < 1$ it's wide-sense stationary and if $|\phi| > 1$ the process is not stationary.
 
-(b) Use your function from a) to simulate two AR(1)-processes, $x_{1:T}$ with $\phi$ = 0.3 and $y_{1:T}$ with $\phi$ = 0.95. Now, treat the values of $\mu$, $\phi$ and $\sigma^2$ as unknown and estimate them using MCMC. Implement Stan-code that samples from the posterior of the three parameters, using suitable non-informative priors of your choice. [Hint: Look at the time-series models examples in the Stan reference manual, and note the different parameterization used here.]
+## Using Stan for Finding the Posterior
 
-    (i) Report the posterior mean, 95% credible intervals and the number of effective posterior samples for the three inferred parameters for each of the simulated AR(1)-process. Are you able to estimate the true values?
-    (ii) For each of the two data sets, evaluate the convergence of the samplers and plot the joint posterior of $\mu$ and $\phi$. Comments?
-    
-```{r, include = FALSE}
+We simulate from the AR(1)-process with the given parameters. And create the given Stan models.
+
+```{r, results='hide'}
+
+################################################################################
+# Exercise 1.b)
+################################################################################
 
 X = ar_process(mu = 10, tau = 200, phi = 0.3, sigma_sq = 2)
 Y = ar_process(mu = 10, tau = 200, phi = 0.95, sigma_sq = 2)
 
 stanModel = '
-
 data {
   int<lower=0> N;
   vector[N] y;
@@ -111,7 +139,6 @@ parameters {
 model {
   y[2:N] ~ normal(mu + phi * y[1:(N - 1)], sqrt(sigma_sq));
 }
-
 '
 
 stanModelX = stan(model_code = stanModel,
@@ -134,26 +161,33 @@ posterior_paramsY = As.mcmc.list(stanModelY)
 
 ```
 
+This is the summary from the first draws. It includes the 95 percent credible interval for all parameters.
+
 ```{r}
 
 stanModelX
-summary(stanModelX, pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
+#summary(stanModelX,
+#        pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
 
-plot(posterior_paramsX)
+#plot(posterior_paramsX)
 pairs(stanModelX)
 
 ```
 
+And these is the summary from the second draws, also including the 95 percent credible interval for all parameters.
 
 ```{r}
 
 stanModelY
-  summary(stanModelY, pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
+#summary(stanModelY,
+#          pars = c("mu", "phi", "sigma_sq"), probs = c(0.025, 0.975))$summary
 
-plot(posterior_paramsY)
+#plot(posterior_paramsY)
 pairs(stanModelY)
 
 ```
+
+In the following plot the joint posterior between $\mu$ and $\phi$ can be seen. The variance for the second joint posterior is higher.
 
 ```{r, echo=FALSE}
 
@@ -178,17 +212,15 @@ ggplot(plotdf)+
 
 ```
 
-
-(c) The data `campy.dat` contain the number of cases of campylobacter infections in the north of the province Quebec (Canada) in four week intervals from January 1990 to the end of October 2000. It has 13 observations per year and 140 observations in total. Assume that the number of infections $c_t$ at each time point follows an independent Poisson distribution when conditioned on a latent AR(1)-process $x_t$, that is
-
-$$c_t | x_t  \sim Poisson(exp(x_t))$$
-
-
-where $x_t$ is an AR(1)-process as in a). Implement and estimate the model in Stan, using suitable priors of your choice. Produce a plot that contains both the data and the posterior mean and 95% credible intervals for the latent intensity $\theta_t = exp (x_t)$ over time. [Hint: Should $x_t$ be seen as data or parameters?]
+## Campylobacter Infection: Modeling with Stan
 
 First we import the data.
 
 ```{r}
+
+################################################################################
+# Exercise 1.c)
+################################################################################
 
 campy_data = read.table("data/campy.dat", header=TRUE)
 
@@ -196,10 +228,9 @@ campy_data = read.table("data/campy.dat", header=TRUE)
 
 We define the following Stan model. Note that we basically have the same paramters as before. One new parameter is x, which represents the AR(1) process and it dependends on the previous parameters. We define the first x as a normal around $\mu$ with the prior for $\sigma$ as the variance. It will therefore heavily depend on the given data but as that's the best we know about the underlying process, we will go for it. For $\sigma^2$ we chose a chi squared prior as the variance has to be positve and a normal would not suit this. As we assume to not know that much about the prior we went for 1 degree of freedom and $\nu = 10$.
 
-```{r}
+```{r, results='hide'}
 
 stanModel = '
-
 data {
   int<lower=0> N;
   int<lower=0> y[N];
@@ -222,7 +253,6 @@ model {
   x[2:N] ~ normal(mu + phi * x[1:(N-1)], sqrt(sigma_sq));
   y[1:N] ~ poisson(exp(x[1:N]));
 }
-
 '
 
 stanModelPoisson = stan(model_code = stanModel,
@@ -232,6 +262,12 @@ stanModelPoisson = stan(model_code = stanModel,
                   iter = 2000)
 
 posteriorPoisson = extract(stanModelPoisson)
+
+```
+
+```{r, max.print(10)}
+
+stanModelPoisson
 
 ```
 
@@ -265,14 +301,17 @@ ggplot(df) +
 
 ```
 
-(d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
+## Using an Informative Prior for Generalizability
 
 We choose a chi squared with 300 degress of freedom  and a very small $\nu$ to make the prior for $\sigma^2$ informative. We observe that the prediction curve is more flattened out and therefore generalizes better if we'd use it for making future predictions.
 
-```{r}
+```{r, results='hide'}
+
+################################################################################
+# Exercise 1.d)
+################################################################################
 
 stanModel = '
-
 data {
   int<lower=0> N;
   int<lower=0> y[N];
@@ -295,21 +334,15 @@ model {
   x[2:N] ~ normal(mu + phi * x[1:(N-1)], sqrt(sigma_sq));
   y[1:N] ~ poisson(exp(x[1:N]));
 }
-
 '
 
 stanModelPoisson = stan(model_code = stanModel,
-                  model_name = "AR_Poisson",
+                  model_name = "AR_Poisson2",
                   data = list(N = length(campy_data$c), y = campy_data$c),
                   warmup = 1000,
                   iter = 2000)
 
 posteriorPoisson = extract(stanModelPoisson)
-
-```
-
-
-```{r}
 
 ci = apply(exp(posteriorPoisson$x), 2, quantile, probs = c(0.025, 0.975))
 
@@ -318,6 +351,12 @@ df = data.frame(x = 1:length(campy_data$c),
                   simulated = exp(colMeans(posteriorPoisson$x)),
                   lower_ci = ci[1,],
                   upper_ci = ci[2,])
+
+```
+
+```{r}
+
+stanModelPoisson
 
 ```
 
