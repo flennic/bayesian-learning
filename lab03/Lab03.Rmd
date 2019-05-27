@@ -52,6 +52,10 @@ Use the posterior mean value for all the parameters.
 
 ### Gibbs Sampler Implementation
 
+**Comment from submission:** 100 samples are quite few. Consider using e.g. 1000 samples.
+
+**Response:** We did 100 samples so it's easier to see something in the plot.
+
 First we load the data and set the parameters for our prior.
 
 ```{r}
@@ -177,6 +181,10 @@ ggplot(plotdf) +
 ```
 
 ## Mixture Normal Model
+
+**Comment from submission:** Also consider plotting the posterior trajectories/means/histograms after removing the initial burnin period.
+
+**Response:** The reason for keeping it was to show how it looks like.
 
 ```{r}
 
@@ -392,6 +400,10 @@ ggplot(sigma_sq_plot_dataframe) +
 **Convergence:** As we can see from the different trace plots the parameters actually converge the same as in the previous exercise. More iterations will make the result more accurate but we set it to a low amount of iterations to have a better zoom on the start of the process to observe the burn-in period.
 
 ## Graphical Comparison
+
+**Comment from submission:** Your mixture density is plotted using the default output from Mattias' code which computes the mean of the mixture densities computed at each Gibbs iteration. This is ok, but not exactly the same as the density requested in the problem, which is based on the posterior mean of the parameters.
+
+**Response:** Okay, thanks for the clarification!
 
 The following plot shows the densities of the data and the two models.
 
